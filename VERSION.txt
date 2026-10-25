@@ -1,0 +1,33 @@
+SMART CLASS ONLINE v2026-10-25-v1
+==================================
+
+Versi web (Next.js + Supabase + Vercel) dari aplikasi desktop Smart Class.
+Marker self-check: file ini harus ada di root paket, baris pertamanya
+persis "SMART CLASS ONLINE v2026-10-25-v1", dan package.json harus
+memuat dependency "jszip" (Export SIAKAD template-preserving).
+
+Daftar isi paket:
+- package.json / package-lock.json — manifest (next, react,
+  @supabase/supabase-js, xlsx, jszip)
+- next.config.mjs, tsconfig.json, vercel.json, .env.example, .gitignore
+- README.md — panduan deploy Bahasa Indonesia + checklist fitur
+- VERSION.txt — file ini
+- src/app/ — layout, halaman / (pengarah), /login, /dashboard, globals.css
+  (tema navy #172554 + aksen sky)
+- src/components/ — SmartClassApp.tsx (semua modul: Dashboard, Profil Dosen,
+  Mata Kuliah, Kelas, Mahasiswa, Pertemuan & Absensi, Penilaian + Export
+  SIAKAD, Materi & Tugas, Rekap & Laporan, Pengaturan, Tentang),
+  Setup.tsx (layar MODE SETUP + guard sesi)
+- src/lib/ — supabase.ts (NEXT_PUBLIC_SUPABASE_URL &
+  NEXT_PUBLIC_SUPABASE_ANON_KEY), types.ts (tipe data + skala nilai),
+  siakad.ts (patch XML template SIAKAD via JSZip)
+- supabase/schema.sql — 14 tabel aplikasi + tabel profiles, RLS, seed
+  pengaturan (nama_aplikasi='Smart Class', institusi='IAI DDI Maros')
+- public/templates-siakad/ — template SIAKAD resmi:
+  PAI.xlsx, PGMI.xlsx, HKI.xlsx, ESy.xlsx (semester 1-8)
+
+Deploy (ringkas): buat proyek Supabase BARU bernama smart-class ->
+jalankan supabase/schema.sql -> buat user Auth pertama -> buat repo
+GitHub ocank/smart-class dan upload isi paket ini -> import ke Vercel
++ isi env NEXT_PUBLIC_SUPABASE_URL & NEXT_PUBLIC_SUPABASE_ANON_KEY
+(publishable key sb_publishable_...) -> tes login & checklist fitur.
