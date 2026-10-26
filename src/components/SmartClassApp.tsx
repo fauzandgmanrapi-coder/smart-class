@@ -21,6 +21,7 @@ import {
   type Tugas,
 } from "@/lib/types";
 import { deteksiProdi, exportSiakadWorkbook } from "@/lib/siakad";
+import QRCode from "qrcode";
 import { SetupScreen, useRequireSession, useSessionUser } from "@/components/Setup";
 
 type View =
@@ -263,6 +264,136 @@ function PhotoProfileModal(props: { userId: string; name: string; current: strin
 
 /* ================= Aplikasi utama ================= */
 
+/* ================= Bagikan ke Mahasiswa (Halaman Mahasiswa) ================= */
+
+function buatTokenBagikan(): string {
+  const c: Crypto | undefined = typeof globalThis !== "undefined" ? globalThis.crypto : undefined;
+  if (c && typeof c.randomUUID === "function") {
+    return c.randomUUID().replace(/-/g, "");
+  }
+  const bytes = new Uint8Array(16);
+  if (c) c.getRandomValues(bytes);
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function ShareKelasModal(props: {
+  kelas: Kelas;
+  mkNama: string;
+  onClose: () => void;
+  onChanged: () => Promise<void>;
+  showToast: (msg: string) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [qr, setQr] = useState("");
+  const aktif = Boolean(props.kelas.bagikan_aktif && props.kelas.token_bagikan);
+  const url = aktif ? `${window.location.origin}/m/${props.kelas.token_bagikan}` : "";
+
+  useEffect(() => {
+    let alive = true;
+    if (url) {
+      QRCode.toDataURL(url, { width: 220, margin: 1 })
+        .then((d) => { if (alive) setQr(d); })
+        .catch(() => { if (alive) setQr(""); });
+    } else {
+      setQr("");
+    }
+    return () => { alive = false; };
+  }, [url]);
+
+  async function updateKelas(patch: Partial<Kelas>, okMsg: string) {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    setBusy(true);
+    const { error } = await supabase.from("kelas").update(patch).eq("id", props.kelas.id);
+    setBusy(false);
+    if (error) { props.showToast(`Gagal: ${error.message}`); return; }
+    await props.onChanged();
+    props.showToast(okMsg);
+  }
+
+  async function salinLink() {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      props.showToast("Tidak bisa menyalin otomatis — salin manual dari kotak link.");
+    }
+  }
+
+  return (
+    <Modal title={`Bagikan ke Mahasiswa — ${props.kelas.kode_kelas}`} onClose={props.onClose}>
+      <p className="muted" style={{ marginTop: 0 }}>
+        Halaman Mahasiswa adalah halaman publik <strong>hanya-baca</strong> untuk kelas ini ({props.mkNama}).
+        Mahasiswa membukanya lewat link/QR <strong>tanpa login dan tanpa akun dosen</strong>.
+      </p>
+      <p className="muted">
+        Yang terlihat mahasiswa: info kelas, jadwal &amp; topik pertemuan, materi, dan tugas.
+        Yang <strong>tidak</strong> terlihat: daftar mahasiswa, absensi, dan nilai.
+      </p>
+
+      {!aktif && (
+        <>
+          <p><span className="chip warn">Link belum aktif</span></p>
+          <div className="modal-actions">
+            <button className="btn" onClick={props.onClose}>Tutup</button>
+            <button
+              className="btn btn-primary"
+              disabled={busy}
+              onClick={() => void updateKelas(
+                { token_bagikan: props.kelas.token_bagikan ?? buatTokenBagikan(), bagikan_aktif: true },
+                "Link Halaman Mahasiswa diaktifkan."
+              )}
+            >Aktifkan Link Mahasiswa</button>
+          </div>
+        </>
+      )}
+
+      {aktif && (
+        <>
+          <p><span className="chip ok">Link aktif</span></p>
+          <div className="share-link-box">
+            <input readOnly value={url} onFocus={(e) => e.target.select()} aria-label="Link Halaman Mahasiswa" />
+            <button className="btn btn-primary" onClick={() => void salinLink()}>{copied ? "✓ Tersalin" : "Salin"}</button>
+          </div>
+          {qr && (
+            <div className="share-qr">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qr} alt="QR code Halaman Mahasiswa" />
+              <p>Mahasiswa cukup memindai QR ini dengan kamera HP.</p>
+            </div>
+          )}
+          <div className="modal-actions" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
+            <a className="btn" href={url} target="_blank" rel="noopener noreferrer">Buka Halaman ↗</a>
+            <span style={{ display: "inline-flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() => {
+                  if (window.confirm("Ganti link? Link lama langsung berhenti bekerja dan mahasiswa harus memakai link/QR baru.")) {
+                    void updateKelas({ token_bagikan: buatTokenBagikan(), bagikan_aktif: true }, "Link diganti. Bagikan link/QR baru ke mahasiswa.");
+                  }
+                }}
+              >Ganti Link</button>
+              <button
+                className="btn btn-danger"
+                disabled={busy}
+                onClick={() => {
+                  if (window.confirm("Nonaktifkan link? Mahasiswa tidak bisa lagi membuka halaman kelas ini sampai link diaktifkan lagi.")) {
+                    void updateKelas({ bagikan_aktif: false }, "Link Halaman Mahasiswa dinonaktifkan.");
+                  }
+                }}
+              >Nonaktifkan</button>
+              <button className="btn" onClick={props.onClose}>Tutup</button>
+            </span>
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}
+
 interface EditorState { table: string; title: string; fields: FieldDef[]; initial: Record<string, string>; id?: number; numericKeys: string[]; nullableKeys: string[]; fixed?: Record<string, unknown>; }
 
 export default function SmartClassApp() {
@@ -292,6 +423,7 @@ export default function SmartClassApp() {
   const [photoOpen, setPhotoOpen] = useState(false);
   const [activeKelasId, setActiveKelasId] = useState<number | null>(null);
   const [editor, setEditor] = useState<EditorState | null>(null);
+  const [shareKelasId, setShareKelasId] = useState<number | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [searchMhs, setSearchMhs] = useState("");
   const [selectedPertemuanId, setSelectedPertemuanId] = useState<number | null>(null);
@@ -735,8 +867,10 @@ export default function SmartClassApp() {
                     <p>{jumlah} peserta • Kapasitas {k.kapasitas ?? "-"}</p>
                     <span className={`pill-status${k.status !== "Aktif" ? " off" : ""}`}>{k.status}</span>
                     {k.id === activeKelasId && <> <span className="chip ok">Kelas Aktif</span></>}
+                    {k.bagikan_aktif && k.token_bagikan && <> <span className="chip">🔗 Link Mahasiswa Aktif</span></>}
                     <div className="row-actions">
                       <button className="btn btn-small" onClick={() => { pilihKelasAktif(k.id); showToast(`${k.kode_kelas} menjadi kelas aktif.`); }}>Pilih Aktif</button>
+                      <button className="btn btn-small" onClick={() => setShareKelasId(k.id)}>🔗 Bagikan</button>
                       <button className="btn btn-small" onClick={() => openEditor({
                         table: "kelas", title: "Edit Kelas", id: k.id, numericKeys: ["mata_kuliah_id", "dosen_id", "tahun_akademik_id", "kapasitas"], nullableKeys: ["ruang", "hari", "jam_mulai", "jam_selesai", "deskripsi"],
                         fields: [
@@ -1506,6 +1640,7 @@ export default function SmartClassApp() {
                 { j: "Pertemuan & Absensi", d: "Catat pertemuan dan kehadiran mahasiswa (Hadir/Izin/Sakit/Alpha/Terlambat) secara massal." },
                 { j: "Penilaian & SIAKAD", d: "Komponen bobot 100%, nilai akhir + huruf, dan Export Nilai SIAKAD template-preserving per prodi." },
                 { j: "Materi & Tugas", d: "Kelola materi, tugas, deadline, dan pengumpulan tugas per mahasiswa." },
+                { j: "Halaman Mahasiswa", d: "Bagikan link/QR per kelas: mahasiswa melihat info kelas, jadwal & topik pertemuan, materi, dan tugas tanpa login. Nilai dan absensi tidak ditampilkan." },
                 { j: "Rekap & Laporan", d: "Rekap kehadiran, nilai, dan laporan lengkap yang siap dicetak / disimpan PDF." },
                 { j: "Pengaturan", d: "Tahun akademik aktif, backup/restore JSON online, dan reset semester yang aman." },
               ].map((c) => (
@@ -1513,7 +1648,7 @@ export default function SmartClassApp() {
               ))}
             </div>
             <p className="muted" style={{ fontSize: 13, marginTop: 16 }}>
-              Versi paket: SMART CLASS ONLINE v2026-10-25-v1 • Teknologi: Next.js + Supabase + Vercel.
+              Versi paket: SMART CLASS ONLINE v2026-10-26-v2 • Teknologi: Next.js + Supabase + Vercel.
               Program studi yang didukung Export SIAKAD: PGMI (86232), PAI (86208), Ekonomi Syariah (60206), Hukum Keluarga Islam (74230).
             </p>
           </section>
@@ -1540,6 +1675,20 @@ export default function SmartClassApp() {
           onSaved={(photo) => { setMyPhoto(photo); setPhotoOpen(false); showToast(photo ? "Foto profil berhasil diperbarui." : "Foto profil dihapus."); }}
         />
       )}
+
+      {shareKelasId !== null && (() => {
+        const k = kelasList.find((x) => x.id === shareKelasId);
+        if (!k) return null;
+        return (
+          <ShareKelasModal
+            kelas={k}
+            mkNama={mkById.get(k.mata_kuliah_id)?.nama ?? "-"}
+            onClose={() => setShareKelasId(null)}
+            onChanged={loadAll}
+            showToast={showToast}
+          />
+        );
+      })()}
 
       {importOpen && (
         <ImportMahasiswaModal

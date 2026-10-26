@@ -1,33 +1,51 @@
-SMART CLASS ONLINE v2026-10-25-v1
+SMART CLASS ONLINE v2026-10-26-v2
 ==================================
 
-Versi web (Next.js + Supabase + Vercel) dari aplikasi desktop Smart Class.
+Pembaruan dari v2026-10-25-v1: fitur HALAMAN MAHASISWA.
 Marker self-check: file ini harus ada di root paket, baris pertamanya
-persis "SMART CLASS ONLINE v2026-10-25-v1", dan package.json harus
-memuat dependency "jszip" (Export SIAKAD template-preserving).
+persis "SMART CLASS ONLINE v2026-10-26-v2", dan package.json harus
+memuat dependency "qrcode" (QR Halaman Mahasiswa) dan "jszip"
+(Export SIAKAD template-preserving).
 
-Daftar isi paket:
+Baru di v2:
+- Halaman publik /m/<token> per kelas (tanpa login, hanya-baca):
+  info kelas, dosen, jadwal & topik pertemuan, daftar materi, dan
+  daftar tugas + deadline. Data mahasiswa, absensi, dan nilai TIDAK
+  PERNAH ditampilkan ke publik.
+- Menu Kelas > tombol "Bagikan" per kartu kelas: aktifkan/nonaktifkan
+  link, salin link, QR code, dan ganti link (token lama langsung mati).
+- supabase/migrasi-v2-halaman-mahasiswa.sql — WAJIB dijalankan sekali
+  di Supabase proyek smart-class (SQL Editor) sebelum/sesudah upload:
+  menambah kolom kelas.token_bagikan + kelas.bagikan_aktif dan fungsi
+  publik halaman_mahasiswa(token) yang terbatas token (security
+  definer, hanya field aman yang dikembalikan untuk role anon).
+- supabase/schema.sql diperbarui (instalasi baru langsung termasuk v2).
+- Dependency baru: qrcode (pembangkit QR di browser dosen).
+
+Langkah update dari v1 (ringkas, detail di README.md bagian
+"Pembaruan v2026-10-26-v2"):
+1. Supabase smart-class > SQL Editor: jalankan
+   supabase/migrasi-v2-halaman-mahasiswa.sql sampai sukses.
+2. Upload/timpa file yang berubah ke repo GitHub smart-class:
+   package.json, package-lock.json, src/lib/types.ts,
+   src/components/SmartClassApp.tsx, src/app/globals.css,
+   src/app/m/[token]/page.tsx (baru), supabase/schema.sql,
+   supabase/migrasi-v2-halaman-mahasiswa.sql (baru), VERSION.txt,
+   README.md. Vercel men-deploy ulang otomatis.
+3. Tes: login > Kelas > Bagikan > Aktifkan Link Mahasiswa > buka
+   link di jendela penyamaran — halaman kelas tampil tanpa login.
+
+Isi paket lengkap (sama seperti v1 + tambahan v2):
 - package.json / package-lock.json — manifest (next, react,
-  @supabase/supabase-js, xlsx, jszip)
+  @supabase/supabase-js, xlsx, jszip, qrcode)
 - next.config.mjs, tsconfig.json, vercel.json, .env.example, .gitignore
-- README.md — panduan deploy Bahasa Indonesia + checklist fitur
+- README.md — panduan deploy + langkah pembaruan v2 + self-check
 - VERSION.txt — file ini
-- src/app/ — layout, halaman / (pengarah), /login, /dashboard, globals.css
-  (tema navy #172554 + aksen sky)
-- src/components/ — SmartClassApp.tsx (semua modul: Dashboard, Profil Dosen,
-  Mata Kuliah, Kelas, Mahasiswa, Pertemuan & Absensi, Penilaian + Export
-  SIAKAD, Materi & Tugas, Rekap & Laporan, Pengaturan, Tentang),
-  Setup.tsx (layar MODE SETUP + guard sesi)
-- src/lib/ — supabase.ts (NEXT_PUBLIC_SUPABASE_URL &
-  NEXT_PUBLIC_SUPABASE_ANON_KEY), types.ts (tipe data + skala nilai),
-  siakad.ts (patch XML template SIAKAD via JSZip)
-- supabase/schema.sql — 14 tabel aplikasi + tabel profiles, RLS, seed
-  pengaturan (nama_aplikasi='Smart Class', institusi='IAI DDI Maros')
-- public/templates-siakad/ — template SIAKAD resmi:
-  PAI.xlsx, PGMI.xlsx, HKI.xlsx, ESy.xlsx (semester 1-8)
-
-Deploy (ringkas): buat proyek Supabase BARU bernama smart-class ->
-jalankan supabase/schema.sql -> buat user Auth pertama -> buat repo
-GitHub ocank/smart-class dan upload isi paket ini -> import ke Vercel
-+ isi env NEXT_PUBLIC_SUPABASE_URL & NEXT_PUBLIC_SUPABASE_ANON_KEY
-(publishable key sb_publishable_...) -> tes login & checklist fitur.
+- src/app/ — layout, / (pengarah), /login, /dashboard,
+  /m/[token] (Halaman Mahasiswa), globals.css (tema navy #172554)
+- src/components/ — SmartClassApp.tsx (11 modul + panel Bagikan ke
+  Mahasiswa), Setup.tsx (layar MODE SETUP + guard sesi)
+- src/lib/ — supabase.ts, types.ts, siakad.ts
+- supabase/schema.sql — 15 tabel + fungsi halaman_mahasiswa, RLS, seed
+- supabase/migrasi-v2-halaman-mahasiswa.sql — migrasi v1 -> v2
+- public/templates-siakad/ — PAI.xlsx, PGMI.xlsx, HKI.xlsx, ESy.xlsx

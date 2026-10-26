@@ -39,6 +39,8 @@ export interface Kelas {
   kapasitas: number | null;
   status: string;
   deskripsi: string | null;
+  token_bagikan: string | null;
+  bagikan_aktif: boolean;
 }
 
 export interface Mahasiswa {

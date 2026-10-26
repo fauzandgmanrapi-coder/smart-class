@@ -391,3 +391,55 @@ table.report-table td.c, table.report-table th.c { text-align: center; }
   .modal-backdrop { position: static !important; background: #fff !important; padding: 0 !important; display: block !important; }
   .modal { box-shadow: none !important; max-width: none !important; max-height: none !important; overflow: visible !important; padding: 0 !important; }
 }
+
+/* ---------- Halaman Mahasiswa (publik, /m/<token>) ---------- */
+.hm-wrap { max-width: 760px; margin: 0 auto; padding: 18px 14px 40px; }
+.hm-hero {
+  background: linear-gradient(135deg, #172554, #0369a1);
+  color: #e0f2fe; border-radius: 20px; padding: 26px 24px; margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.hm-hero h1 { margin: 4px 0 6px; font-size: 26px; color: #fff; line-height: 1.25; }
+.hm-appname { margin: 0; font-size: 12px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #7dd3fc; }
+.hm-sub { margin: 0; font-size: 14px; color: #bae6fd; }
+.hm-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow);
+}
+.hm-card h2 { margin: 0 0 14px; font-size: 18px; }
+.hm-center { text-align: center; padding: 44px 22px; }
+.hm-emoji { font-size: 40px; margin: 0 0 8px; }
+.hm-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
+.hm-info-grid span { display: block; font-size: 11.5px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+.hm-info-grid strong { display: block; font-size: 15px; }
+.hm-info-grid em { display: block; font-style: normal; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.hm-desc { margin: 14px 0 0; font-size: 14px; white-space: pre-wrap; }
+.hm-item { border-top: 1px solid var(--border); padding: 14px 0 4px; }
+.hm-item:first-of-type { border-top: none; padding-top: 2px; }
+.hm-item-head { display: flex; align-items: flex-start; gap: 10px; justify-content: space-between; }
+.hm-item-head h3 { margin: 0; font-size: 16px; }
+.hm-item .btn { margin: 6px 0 10px; }
+.hm-meta { margin: 5px 0; font-size: 13px; color: var(--muted); }
+.hm-text { margin: 6px 0; font-size: 14px; white-space: pre-wrap; }
+.hm-meetings { list-style: none; margin: 0; padding: 0; }
+.hm-meetings li { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--border); }
+.hm-meetings li:first-child { border-top: none; padding-top: 2px; }
+.hm-meetings strong { font-size: 14.5px; }
+.hm-meet-no {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 999px;
+  background: var(--emerald-soft); color: var(--navy);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 13px;
+}
+.hm-footer { text-align: center; font-size: 13px; margin-top: 6px; }
+.hm-footer p { margin: 3px 0; }
+@media (max-width: 560px) {
+  .hm-info-grid { grid-template-columns: 1fr; }
+  .hm-hero h1 { font-size: 22px; }
+}
+/* Panel Bagikan ke Mahasiswa (sisi dosen) */
+.share-link-box { display: flex; gap: 8px; margin: 10px 0; }
+.share-link-box input { flex: 1; font-size: 13px; }
+.share-qr { text-align: center; margin: 14px 0 6px; }
+.share-qr img { width: 200px; height: 200px; border: 1px solid var(--border); border-radius: 12px; }
+.share-qr p { font-size: 12.5px; color: var(--muted); margin: 6px 0 0; }

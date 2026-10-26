@@ -12,6 +12,7 @@ untuk mengelola:
 - **Pertemuan & Absensi** — pertemuan per kelas aktif, absensi massal Hadir/Izin/Sakit/Alpha/Terlambat, % kehadiran
 - **Penilaian** — komponen bobot (total wajib 100%), input nilai massal, nilai akhir + huruf, **Export SIAKAD**
 - **Materi & Tugas** — materi terkait pertemuan, tugas + deadline, pengumpulan tugas per mahasiswa
+- **Halaman Mahasiswa** *(baru di v2)* — halaman publik hanya-baca per kelas lewat link/QR (menu Kelas → tombol **🔗 Bagikan**): mahasiswa melihat info kelas, jadwal & topik pertemuan, materi, dan tugas **tanpa login**; data mahasiswa, absensi, dan nilai tidak pernah ditampilkan
 - **Rekap & Laporan** — ringkasan kelas, rekap kehadiran/nilai/mahasiswa/pertemuan, laporan lengkap siap cetak/PDF (A4 landscape)
 - **Pengaturan** — tahun akademik, Backup/Restore JSON online, Reset Semester
 - **Tentang** — ringkasan aplikasi & fitur
@@ -101,24 +102,61 @@ Login dengan user Auth dari langkah 2, lalu cek berurutan:
 
 ---
 
+## 🔄 Pembaruan v2026-10-26-v2 — Halaman Mahasiswa (untuk yang sudah deploy v1)
+
+Lakukan 3 langkah ini berurutan:
+
+### Langkah A — Jalankan migrasi database (sekali saja)
+
+1. Buka Supabase proyek **`smart-class`** → **SQL Editor → New query**.
+2. Salin **seluruh isi** file `supabase/migrasi-v2-halaman-mahasiswa.sql`
+   dari paket ini, lalu klik **Run**. Harus berhasil tanpa pesan error.
+   (File ini menambahkan kolom berbagi di tabel kelas + fungsi publik
+   `halaman_mahasiswa`. Aman dijalankan berulang.)
+
+### Langkah B — Upload file yang berubah ke repo GitHub `smart-class`
+
+Upload/timpa file-file ini dari paket v2 (struktur folder dipertahankan):
+
+- `package.json` dan `package-lock.json` *(ada dependency baru: `qrcode`)*
+- `src/lib/types.ts`
+- `src/components/SmartClassApp.tsx`
+- `src/app/globals.css`
+- `src/app/m/[token]/page.tsx` *(file baru — buat folder `src/app/m/[token]`)*
+- `supabase/schema.sql` dan `supabase/migrasi-v2-halaman-mahasiswa.sql`
+- `VERSION.txt` dan `README.md`
+
+Vercel akan otomatis men-deploy ulang setelah upload selesai.
+
+### Langkah C — Tes Halaman Mahasiswa
+
+- [ ] Login → menu **Kelas** → pada kartu kelas ada tombol **🔗 Bagikan**
+- [ ] Klik **🔗 Bagikan** → **Aktifkan Link Mahasiswa** → link + QR muncul
+- [ ] Klik **Salin**, lalu buka link-nya di jendela **penyamaran/incognito**
+      (atau HP lain) — halaman kelas terbuka **tanpa login**, berisi info
+      kelas, tugas, materi, dan jadwal pertemuan
+- [ ] Coba **Nonaktifkan** → link lama menampilkan pesan "Tautan tidak aktif"
+
 ## ✅ Self-Check Sebelum Upload
 
 Lakukan cek ini pada folder hasil ekstrak ZIP **sebelum** upload ke GitHub,
 agar tidak tertukar dengan versi lama:
 
 1. Buka file **`VERSION.txt`** di root folder — isinya harus diawali
-   **`SMART CLASS ONLINE v2026-10-25-v1`**.
-2. Buka **`package.json`** — tekan Ctrl+F dan cari kata **`jszip`**.
-   Harus ketemu (dependency Export SIAKAD). Bila tidak ketemu, Anda membuka
-   folder yang salah/versi lama — ekstrak ulang ZIP
-   `smart-class-online-v2026-10-25-v1.zip` ke folder baru.
+   **`SMART CLASS ONLINE v2026-10-26-v2`**.
+2. Buka **`package.json`** — tekan Ctrl+F dan cari kata **`qrcode`**.
+   Harus ketemu (dependency baru v2 untuk QR Halaman Mahasiswa). Bila tidak
+   ketemu, Anda membuka folder yang salah/versi lama — ekstrak ulang ZIP
+   `smart-class-online-v2026-10-26-v2.zip` ke folder baru.
 3. Pastikan folder **`public/templates-siakad/`** berisi 4 file:
-   `PAI.xlsx`, `PGMI.xlsx`, `HKI.xlsx`, `ESy.xlsx`.
+   `PAI.xlsx`, `PGMI.xlsx`, `HKI.xlsx`, `ESy.xlsx`, dan ada file baru
+   **`src/app/m/[token]/page.tsx`** serta
+   **`supabase/migrasi-v2-halaman-mahasiswa.sql`**.
 4. Ekstrak ZIP ke **folder baru** (jangan menimpa ekstraksi lama), upload dari
    folder baru itu, lalu hapus ZIP & folder lama agar tidak tertukar.
 
-Marker unik build ini: string **`jszip`** di `package.json` dan baris pertama
-`VERSION.txt` = `SMART CLASS ONLINE v2026-10-25-v1`.
+Marker unik build ini: string **`qrcode`** di `package.json` dan baris pertama
+`VERSION.txt` = `SMART CLASS ONLINE v2026-10-26-v2`.
 
 ---
 
@@ -199,7 +237,7 @@ petunjuk setup berbahasa Indonesia (bukan error).
 ## Struktur Project
 
 ```
-src/app/            Halaman: / (pengarah), /login, /dashboard
+src/app/            Halaman: / (pengarah), /login, /dashboard, /m/[token] (Halaman Mahasiswa publik)
 src/components/     SmartClassApp (semua modul), layar Setup
 src/lib/            Client Supabase, tipe data, Export SIAKAD (siakad.ts)
 supabase/schema.sql Skema database + RLS + data awal
