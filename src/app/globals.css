@@ -444,14 +444,38 @@ table.report-table td.c, table.report-table th.c { text-align: center; }
 .share-qr img { width: 200px; height: 200px; border: 1px solid var(--border); border-radius: 12px; }
 .share-qr p { font-size: 12.5px; color: var(--muted); margin: 6px 0 0; }
 
-/* ---------- Kontras ikon kalender/jam (v3) ---------- */
+/* ---------- Kontras ikon kalender/jam (v3, diperkuat v4) ---------- */
 /* Paksa skema terang untuk kontrol bawaan browser: tanpa ini, pada
    Windows/Chrome mode gelap ikon kalender & jam pada input tanggal/
-   jam tampil putih di atas kotak putih sehingga nyaris tak terlihat. */
+   jam tampil putih di atas kotak putih sehingga nyaris tak terlihat.
+   Glyph bawaan Chrome sendiri sangat pucat, jadi siluetnya dipaksa
+   hitam total (filter: brightness(0)) lalu ditampilkan pada opacity
+   tinggi — hasilnya ikon abu gelap yang kontras di kotak putih. */
 :root { color-scheme: light; }
 input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="time"]::-webkit-calendar-picker-indicator,
 input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-  opacity: 0.72;
+  filter: brightness(0);
+  opacity: 0.62;
   cursor: pointer;
+  padding: 2px;
+  border-radius: 6px;
 }
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.85;
+  background: rgba(23, 37, 84, 0.1);
+}
+
+/* ---------- Formulir pengumpulan tugas (Halaman Mahasiswa v5) ---------- */
+.hm-form {
+  border: 1px dashed var(--border); border-radius: 14px;
+  padding: 14px 16px 10px; margin: 10px 0 14px; background: var(--ivory);
+}
+.hm-form h4 { margin: 0 0 10px; font-size: 15px; }
+.hm-form label { margin-bottom: 10px; }
+.hm-msg { border-radius: 10px; padding: 9px 12px; font-size: 13.5px; font-weight: 600; margin: 8px 0; }
+.hm-msg.ok { background: #dcfce7; color: #166534; }
+.hm-msg.err { background: #fbe9e4; color: var(--danger); }
+.hm-note { font-size: 12.5px; color: var(--muted); margin: 10px 0 4px; }

@@ -1375,7 +1375,7 @@ export default function SmartClassApp() {
                           const upd = (patch: Partial<typeof d>) => setKumpulDraft((prev) => ({ ...prev, [a.mahasiswa_id]: { ...d, ...patch } }));
                           return (
                             <tr key={a.id}>
-                              <td>{m.nim}</td><td><strong>{m.nama}</strong></td>
+                              <td>{m.nim}</td><td><strong>{m.nama}</strong>{existing?.waktu_kumpul ? <div className="muted" style={{ fontSize: 12, fontWeight: 400 }}>Dikumpulkan: {existing.waktu_kumpul}</div> : null}</td>
                               <td>
                                 <select value={d.status} onChange={(e) => upd({ status: e.target.value })}>
                                   {["Belum Dinilai", "Sudah Dinilai", "Terlambat"].map((s) => <option key={s} value={s}>{s}</option>)}
@@ -1660,7 +1660,7 @@ export default function SmartClassApp() {
               ))}
             </div>
             <p className="muted" style={{ fontSize: 13, marginTop: 16 }}>
-              Versi paket: SMART CLASS ONLINE v2026-10-26-v3 • Teknologi: Next.js + Supabase + Vercel.
+              Versi paket: SMART CLASS ONLINE v2026-10-26-v5 • Teknologi: Next.js + Supabase + Vercel.
               Program studi yang didukung Export SIAKAD: PGMI (86232), PAI (86208), Ekonomi Syariah (60206), Hukum Keluarga Islam (74230).
             </p>
           </section>

@@ -352,6 +352,7 @@ begin
     'tugas', coalesce((
       select jsonb_agg(
         jsonb_build_object(
+          'id', t.id,
           'judul', t.judul,
           'deskripsi', t.deskripsi,
           'deadline', t.deadline,
@@ -368,6 +369,118 @@ $$;
 
 revoke all on function public.halaman_mahasiswa(text) from public;
 grant execute on function public.halaman_mahasiswa(text) to anon, authenticated;
+
+-- Pengumpulan tugas dari halaman publik (v2026-10-26-v5):
+-- mahasiswa mengumpulkan tanpa login; fungsi memeriksa token
+-- kelas aktif, kepemilikan tugas, dan kecocokan NIM + Nama dengan
+-- anggota AKTIF kelas (daftar mahasiswa tidak pernah diekspos).
+-- Lewat deadline -> status "Terlambat" (waktu Asia/Makassar).
+-- Kiriman yang sudah dinilai dosen tidak bisa ditimpa dari publik.
+create or replace function public.kumpul_tugas_mahasiswa(
+  p_token text,
+  p_tugas_id bigint,
+  p_nim text,
+  p_nama text,
+  p_file_url text,
+  p_file_name text,
+  p_catatan text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_kelas_id bigint;
+  v_mhs_id bigint;
+  v_deadline text;
+  v_existing public.pengumpulan_tugas%rowtype;
+  v_status text := 'Belum Dinilai';
+  v_now timestamptz := now();
+  v_dl timestamptz;
+begin
+  select id into v_kelas_id
+    from public.kelas
+   where token_bagikan = p_token
+     and bagikan_aktif is true
+   limit 1;
+  if v_kelas_id is null then
+    return jsonb_build_object('sukses', false, 'pesan', 'Tautan kelas tidak aktif. Minta tautan terbaru kepada dosen Anda.');
+  end if;
+
+  select deadline into v_deadline
+    from public.tugas
+   where id = p_tugas_id and kelas_id = v_kelas_id;
+  if not found then
+    return jsonb_build_object('sukses', false, 'pesan', 'Tugas tidak ditemukan untuk kelas ini.');
+  end if;
+
+  select m.id into v_mhs_id
+    from public.mahasiswa m
+    join public.anggota_kelas a on a.mahasiswa_id = m.id
+   where a.kelas_id = v_kelas_id
+     and a.status = 'Aktif'
+     and replace(m.nim, ' ', '') = replace(coalesce(trim(p_nim), ''), ' ', '')
+     and regexp_replace(lower(trim(m.nama)), '\s+', ' ', 'g')
+         = regexp_replace(lower(trim(coalesce(p_nama, ''))), '\s+', ' ', 'g')
+   limit 1;
+  if v_mhs_id is null then
+    return jsonb_build_object('sukses', false, 'pesan', 'NIM/Nama tidak cocok dengan daftar kelas. Tulis NIM dan nama lengkap persis seperti data kampus Anda.');
+  end if;
+
+  if p_file_url is null or trim(p_file_url) = '' or trim(p_file_url) not ilike 'http%' then
+    return jsonb_build_object('sukses', false, 'pesan', 'Tautan file wajib diisi dan harus diawali http (mis. tautan Google Drive).');
+  end if;
+  if length(p_file_url) > 1000 or length(coalesce(p_nama, '')) > 120
+     or length(coalesce(p_nim, '')) > 30 or length(coalesce(p_catatan, '')) > 500 then
+    return jsonb_build_object('sukses', false, 'pesan', 'Isian terlalu panjang. Periksa kembali tautan/catatan Anda.');
+  end if;
+
+  select * into v_existing
+    from public.pengumpulan_tugas
+   where tugas_id = p_tugas_id and mahasiswa_id = v_mhs_id;
+  if found and v_existing.status = 'Sudah Dinilai' then
+    return jsonb_build_object('sukses', false, 'pesan', 'Tugas Anda sudah dinilai dosen. Hubungi dosen bila perlu mengumpulkan ulang.');
+  end if;
+
+  if v_deadline is not null and trim(v_deadline) <> '' then
+    begin
+      v_dl := (trim(v_deadline))::timestamp at time zone 'Asia/Makassar';
+      if v_now > v_dl then
+        v_status := 'Terlambat';
+      end if;
+    exception when others then
+      v_dl := null;
+    end;
+  end if;
+
+  insert into public.pengumpulan_tugas
+    (tugas_id, mahasiswa_id, waktu_kumpul, file_url, file_name, status, catatan)
+  values
+    (p_tugas_id, v_mhs_id,
+     to_char(v_now at time zone 'Asia/Makassar', 'DD Mon YYYY • HH24:MI') || ' WITA',
+     trim(p_file_url), nullif(trim(coalesce(p_file_name, '')), ''),
+     v_status, nullif(trim(coalesce(p_catatan, '')), ''))
+  on conflict (tugas_id, mahasiswa_id) do update
+    set waktu_kumpul = excluded.waktu_kumpul,
+        file_url = excluded.file_url,
+        file_name = excluded.file_name,
+        status = excluded.status,
+        catatan = excluded.catatan;
+
+  return jsonb_build_object(
+    'sukses', true,
+    'pesan', case
+      when v_status = 'Terlambat'
+        then 'Tugas terkirim, tercatat TERLAMBAT karena melewati deadline.'
+      else 'Tugas berhasil dikumpulkan. Terima kasih!'
+    end
+  );
+end;
+$$;
+
+revoke all on function public.kumpul_tugas_mahasiswa(text, bigint, text, text, text, text, text) from public;
+grant execute on function public.kumpul_tugas_mahasiswa(text, bigint, text, text, text, text, text) to anon, authenticated;
 
 -- ---------- Data Awal (seed, idempotent) ----------
 

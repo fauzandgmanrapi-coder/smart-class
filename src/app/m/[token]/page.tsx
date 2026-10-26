@@ -13,7 +13,7 @@ import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
 interface HmPertemuan { pertemuan_ke: number; tanggal: string; topik: string | null; status: string }
 interface HmMateri { judul: string; deskripsi: string | null; file_url: string | null; file_name: string | null; pertemuan_ke: number | null }
-interface HmTugas { judul: string; deskripsi: string | null; deadline: string | null; bobot: number | null; file_url: string | null; file_name: string | null }
+interface HmTugas { id: number; judul: string; deskripsi: string | null; deadline: string | null; bobot: number | null; file_url: string | null; file_name: string | null }
 interface HmData {
   aplikasi: { nama: string; institusi: string } | null;
   kelas: { kode_kelas: string; ruang: string | null; hari: string | null; jam_mulai: string | null; jam_selesai: string | null; deskripsi: string | null; status: string } | null;
@@ -48,6 +48,94 @@ function deadlineChip(deadline: string | null): { label: string; cls: string } |
   if (t < now) return { label: "Lewat deadline", cls: "bad" };
   if (t - now <= 3 * 24 * 3600 * 1000) return { label: "Segera berakhir", cls: "warn" };
   return { label: "Masih dibuka", cls: "ok" };
+}
+
+/* Formulir pengumpulan tugas (v5): mahasiswa mengirim tautan file
+   tanpa login. Server (fungsi kumpul_tugas_mahasiswa) memeriksa
+   kecocokan NIM + Nama dengan anggota kelas sebelum menerima. */
+function KumpulForm(props: { token: string; tugas: HmTugas }) {
+  const [open, setOpen] = useState(false);
+  const [nim, setNim] = useState("");
+  const [nama, setNama] = useState("");
+  const [fileUrl, setFileUrl] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [catatan, setCatatan] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [hasil, setHasil] = useState<{ sukses: boolean; pesan: string } | null>(null);
+
+  async function kirim() {
+    setHasil(null);
+    if (!nim.trim() || !nama.trim()) {
+      setHasil({ sukses: false, pesan: "NIM dan Nama wajib diisi." });
+      return;
+    }
+    if (!/^https?:\/\//i.test(fileUrl.trim())) {
+      setHasil({ sukses: false, pesan: "Tautan file wajib diisi dan diawali http/https (mis. tautan Google Drive yang sudah dibagikan)." });
+      return;
+    }
+    const supabase = getSupabase();
+    if (!supabase) {
+      setHasil({ sukses: false, pesan: "Layanan pengumpulan belum tersedia. Coba lagi beberapa saat lagi." });
+      return;
+    }
+    setBusy(true);
+    const { data, error } = await supabase.rpc("kumpul_tugas_mahasiswa", {
+      p_token: props.token,
+      p_tugas_id: props.tugas.id,
+      p_nim: nim,
+      p_nama: nama,
+      p_file_url: fileUrl,
+      p_file_name: fileName,
+      p_catatan: catatan,
+    });
+    setBusy(false);
+    if (error) {
+      setHasil({ sukses: false, pesan: "Gagal mengirim. Periksa koneksi internet lalu coba lagi." });
+      return;
+    }
+    const r = data as { sukses?: boolean; pesan?: string } | null;
+    setHasil({
+      sukses: Boolean(r?.sukses),
+      pesan: r?.pesan ?? "Tidak ada respons dari server. Coba lagi.",
+    });
+  }
+
+  if (!open) {
+    return (
+      <div style={{ margin: "8px 0 12px" }}>
+        <button className="btn btn-primary btn-small" onClick={() => setOpen(true)}>📤 Kumpulkan Tugas</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="hm-form">
+      <h4>📤 Kumpulkan Tugas Ini</h4>
+      <label>NIM
+        <input value={nim} onChange={(e) => setNim(e.target.value)} placeholder="cth. 240101001" autoComplete="off" />
+      </label>
+      <label>Nama Lengkap (sesuai data kampus)
+        <input value={nama} onChange={(e) => setNama(e.target.value)} placeholder="cth. Ahmad Fauzi Rahman" autoComplete="off" />
+      </label>
+      <label>Tautan File Tugas (Google Drive, dll.)
+        <input value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} placeholder="https://drive.google.com/…" inputMode="url" />
+      </label>
+      <label>Nama File (opsional)
+        <input value={fileName} onChange={(e) => setFileName(e.target.value)} placeholder="cth. Makalah-AhmadFauzi.pdf" />
+      </label>
+      <label>Catatan untuk Dosen (opsional)
+        <textarea value={catatan} onChange={(e) => setCatatan(e.target.value)} rows={2} placeholder="Pesan singkat bila ada" />
+      </label>
+      {hasil && (
+        <p className={`hm-msg ${hasil.sukses ? "ok" : "err"}`}>{hasil.sukses ? "✅ " : "⚠️ "}{hasil.pesan}</p>
+      )}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+        <button className="btn btn-primary" disabled={busy} onClick={() => void kirim()}>{busy ? "Mengirim…" : "Kirim Pengumpulan"}</button>
+        <button className="btn" onClick={() => setOpen(false)}>Tutup</button>
+      </div>
+      <p className="hm-note">Mengumpulkan ulang dengan NIM yang sama akan menimpa kiriman sebelumnya (selama belum dinilai dosen). Pastikan tautan file dapat dibuka oleh dosen.</p>
+    </div>
+  );
 }
 
 export default function HalamanMahasiswaPage() {
@@ -147,6 +235,7 @@ export default function HalamanMahasiswaPage() {
               <p className="hm-meta">⏰ Deadline: <strong>{fmtDeadline(t.deadline)}</strong>{t.bobot ? ` • Bobot ${t.bobot}%` : ""}</p>
               {t.deskripsi ? <p className="hm-text">{t.deskripsi}</p> : null}
               {t.file_url ? <a className="btn btn-small" href={t.file_url} target="_blank" rel="noopener noreferrer">📎 {t.file_name || "Buka lampiran tugas"}</a> : null}
+              <KumpulForm token={token} tugas={t} />
             </article>
           );
         })}

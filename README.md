@@ -102,6 +102,41 @@ Login dengan user Auth dari langkah 2, lalu cek berurutan:
 
 ---
 
+## 🔄 Pembaruan v2026-10-26-v5 — Pengumpulan Tugas Online
+
+Mahasiswa kini bisa **mengumpulkan tugas langsung dari Halaman
+Mahasiswa** (link publik per kelas), tanpa login:
+
+1. **Jalankan migrasi dulu:** buka Supabase proyek `smart-class` →
+   SQL Editor → tempel seluruh isi
+   **`supabase/migrasi-v5-pengumpulan-online.sql`** → Run.
+   (Menambah fungsi `kumpul_tugas_mahasiswa` dan memperbarui
+   `halaman_mahasiswa` agar menyertakan id tugas.)
+2. Upload ke repo GitHub `smart-class`: `src/app/m/[token]/page.tsx`,
+   `src/app/globals.css`, `src/components/SmartClassApp.tsx`,
+   `supabase/schema.sql`, `supabase/migrasi-v5-pengumpulan-online.sql`,
+   `package.json`, `package-lock.json`, `VERSION.txt`, `README.md`.
+3. Tunggu deploy Vercel selesai, **Ctrl+F5**.
+
+Cara kerjanya: setiap tugas di halaman publik punya tombol
+**📤 Kumpulkan Tugas**. Mahasiswa mengisi NIM, nama lengkap, dan
+tautan file (mis. Google Drive). Server memeriksa NIM + nama harus
+cocok dengan anggota aktif kelas — daftar mahasiswa tidak pernah
+ditampilkan ke publik. Kirim ulang menimpa kiriman lama selama
+belum dinilai; lewat deadline tercatat **Terlambat** (waktu WITA).
+Hasilnya muncul di sisi dosen pada **Materi & Tugas → Pengumpulan**,
+lengkap dengan waktu kirimnya, dan dinilai seperti biasa.
+
+## 🔄 Pembaruan v2026-10-26-v4 — Ikon Tanggal/Jam Diperkuat
+
+Glyph pemilih tanggal/jam bawaan Chrome sangat pucat walau sudah
+diberi opacity di v3. Di v4 siluet ikon dipaksa hitam
+(`filter: brightness(0)`, opacity 0,62 + hover) di
+**`src/app/globals.css`** — satu-satunya file aplikasi yang berubah.
+Upload file itu (+ `VERSION.txt`, `README.md`) ke repo GitHub
+`smart-class`, tunggu deploy Vercel, **Ctrl+F5**, lalu cek ikon jam di
+form Edit Kelas / Tambah Pertemuan. Tanpa migrasi SQL.
+
 ## 🔄 Pembaruan v2026-10-26-v3 — Perbaikan 4 Bug Uji Coba
 
 Perbaikan: (1) Export SIAKAD corrupt (tag `<calcPr/>` self-closing di
@@ -164,12 +199,12 @@ Lakukan cek ini pada folder hasil ekstrak ZIP **sebelum** upload ke GitHub,
 agar tidak tertukar dengan versi lama:
 
 1. Buka file **`VERSION.txt`** di root folder — isinya harus diawali
-   **`SMART CLASS ONLINE v2026-10-26-v3`**.
-2. Buka **`src/components/SmartClassApp.tsx`** — tekan Ctrl+F dan cari
-   teks **`Keterangan (opsional)`**. Harus ketemu (kolom keterangan
-   absensi baru di v3). Bila tidak ketemu, Anda membuka folder yang
+   **`SMART CLASS ONLINE v2026-10-26-v5`**.
+2. Buka **`src/app/m/[token]/page.tsx`** — tekan Ctrl+F dan cari
+   teks **`Kumpulkan Tugas`**. Harus ketemu (formulir pengumpulan
+   baru di v5). Bila tidak ketemu, Anda membuka folder yang
    salah/versi lama — ekstrak ulang ZIP
-   `smart-class-online-v2026-10-26-v3.zip` ke folder baru.
+   `smart-class-online-v2026-10-26-v5.zip` ke folder baru.
 3. Pastikan folder **`public/templates-siakad/`** berisi 4 file:
    `PAI.xlsx`, `PGMI.xlsx`, `HKI.xlsx`, `ESy.xlsx`, dan ada file
    **`src/app/m/[token]/page.tsx`** serta
@@ -177,9 +212,9 @@ agar tidak tertukar dengan versi lama:
 4. Ekstrak ZIP ke **folder baru** (jangan menimpa ekstraksi lama), upload dari
    folder baru itu, lalu hapus ZIP & folder lama agar tidak tertukar.
 
-Marker unik build ini: teks **`Keterangan (opsional)`** di
-`src/components/SmartClassApp.tsx` dan baris pertama
-`VERSION.txt` = `SMART CLASS ONLINE v2026-10-26-v3`.
+Marker unik build ini: teks **`Kumpulkan Tugas`** di
+`src/app/m/[token]/page.tsx` dan baris pertama
+`VERSION.txt` = `SMART CLASS ONLINE v2026-10-26-v5`.
 
 ---
 

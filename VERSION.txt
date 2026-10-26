@@ -1,47 +1,64 @@
-SMART CLASS ONLINE v2026-10-26-v3
+SMART CLASS ONLINE v2026-10-26-v5
 ==================================
 
-Pembaruan dari v2026-10-26-v2: PERBAIKAN 4 BUG hasil uji coba.
+Fitur baru dari v2026-10-26-v4: PENGUMPULAN TUGAS ONLINE lewat
+Halaman Mahasiswa (link publik per kelas).
 Marker self-check: baris pertama file ini persis
-"SMART CLASS ONLINE v2026-10-26-v3", package.json memuat dependency
-"qrcode" dan "jszip", dan di src/components/SmartClassApp.tsx ada
-teks "Keterangan (opsional)" (kolom keterangan absensi baru).
+"SMART CLASS ONLINE v2026-10-26-v5", dan di
+src/app/m/[token]/page.tsx ada teks "Kumpulkan Tugas".
 
-Perbaikan di v3:
-1. Export SIAKAD corrupt (bug paling serius): akar masalahnya satu
-   karakter "/" yang nyasar di xl/workbook.xml saat kode menyetel
-   fullCalcOnLoad pada tag <calcPr ... /> yang self-closing, sehingga
-   workbook.xml tidak valid dan Excel menolak membuka file. Diperbaiki
-   di src/lib/siakad.ts (updateCalcOnLoad) dan SUDAH DIUJI lokal
-   dengan template PAI asli + 11 data contoh: semua XML valid, sheet
-   SM 3 terbaca utuh, file lolos dibuka/diubah oleh LibreOffice.
-   Data nilai pada export lama sebenarnya sudah benar — yang rusak
-   hanya workbook.xml-nya.
-2. Keterangan absensi: tabel Isi Absensi kini punya kolom
-   "Keterangan" per mahasiswa (mis. alasan Izin/Sakit), tersimpan ke
-   database dan tampil lagi saat absensi dibuka kembali.
-3. Kontras ikon kalender/jam: ditambah color-scheme terang + styling
-   indikator pemilih tanggal/jam di globals.css — ikon tidak lagi
-   putih-di-atas-putih pada Windows/Chrome mode gelap.
-4. Halaman Mahasiswa (dari v2): tombol "Bagikan" sebenarnya sudah
-   live sejak v2 — bila belum terlihat, itu cache tab browser lama;
-   tekan Ctrl+F5 setelah deploy.
+Cara kerja fitur baru:
+- Setiap tugas di halaman publik kini punya tombol
+  "📤 Kumpulkan Tugas" yang membuka formulir: NIM, Nama Lengkap,
+  Tautan File (Google Drive, dll.), Nama File (opsional), dan
+  Catatan (opsional).
+- Tanpa login — sebagai gantinya server memeriksa NIM + Nama
+  harus cocok dengan anggota AKTIF kelas pemilik link (fungsi
+  kumpul_tugas_mahasiswa). Daftar mahasiswa TIDAK pernah
+  ditampilkan di halaman publik.
+- Mengumpulkan ulang dengan NIM yang sama menimpa kiriman
+  sebelumnya, KECUALI yang sudah dinilai dosen (ditolak).
+- Lewat deadline -> status otomatis "Terlambat" (deadline
+  ditafsirkan sebagai waktu Asia/Makassar/WITA).
+- Hasilnya masuk tabel pengumpulan_tugas yang sama: dosen
+  melihatnya di Materi & Tugas > Pengumpulan lengkap dengan
+  waktu kirim ("Dikumpulkan: ..."), lalu menilai seperti biasa.
 
-TIDAK ada perubahan database di v3 — migrasi SQL tidak perlu
-dijalankan lagi. Cukup upload file yang berubah (daftar di README.md
-bagian "Pembaruan v2026-10-26-v3"), Vercel deploy ulang otomatis.
+WAJIB: jalankan migrasi supabase/migrasi-v5-pengumpulan-online.sql
+di SQL Editor proyek Supabase "smart-class" (satu kali, aman
+diulang). Migrasi menambah fungsi kumpul_tugas_mahasiswa dan
+memperbarui halaman_mahasiswa agar menyertakan id tugas.
 
-Isi paket lengkap (sama seperti v2):
+Paket ini juga memuat perbaikan v4 (ikon tanggal/jam kontras di
+globals.css) dan seluruh perbaikan v3 + fitur v2 — bila Anda
+melompat dari v3, cukup ikuti langkah di bawah ini.
+
+File yang berubah dari v3:
+- src/app/m/[token]/page.tsx    (formulir pengumpulan)
+- supabase/migrasi-v5-pengumpulan-online.sql  (BARU — jalankan!)
+- supabase/schema.sql            (fungsi baru untuk instalasi segar)
+- src/app/globals.css            (ikon kontras v4 + gaya formulir)
+- src/components/SmartClassApp.tsx (info waktu kumpul + versi)
+- package.json, package-lock.json, VERSION.txt, README.md
+
+Logika SQL fitur ini telah diuji otomatis di Postgres lokal:
+10 skenario lulus (nama/NIM/tautan salah ditolak, kirim pertama,
+kirim ulang menimpa, kiriman ter-nilai terkunci, status Terlambat,
+dan penolakan saat link nonaktif).
+
+Isi paket lengkap:
 - package.json / package-lock.json — manifest (next, react,
   @supabase/supabase-js, xlsx, jszip, qrcode)
 - next.config.mjs, tsconfig.json, vercel.json, .env.example, .gitignore
-- README.md — panduan deploy + langkah pembaruan v2 & v3 + self-check
+- README.md — panduan deploy + langkah pembaruan v2 s.d. v5
 - VERSION.txt — file ini
 - src/app/ — layout, / (pengarah), /login, /dashboard,
-  /m/[token] (Halaman Mahasiswa), globals.css (tema navy #172554)
-- src/components/ — SmartClassApp.tsx (11 modul + panel Bagikan ke
-  Mahasiswa + keterangan absensi), Setup.tsx
+  /m/[token] (Halaman Mahasiswa + pengumpulan), globals.css
+- src/components/ — SmartClassApp.tsx (11 modul + panel Bagikan +
+  keterangan absensi + info waktu kumpul), Setup.tsx
 - src/lib/ — supabase.ts, types.ts, siakad.ts (export SIAKAD)
-- supabase/schema.sql — 15 tabel + fungsi halaman_mahasiswa, RLS, seed
+- supabase/schema.sql — 15 tabel + fungsi halaman_mahasiswa &
+  kumpul_tugas_mahasiswa, RLS, seed
 - supabase/migrasi-v2-halaman-mahasiswa.sql — migrasi v1 -> v2
+- supabase/migrasi-v5-pengumpulan-online.sql — migrasi -> v5
 - public/templates-siakad/ — PAI.xlsx, PGMI.xlsx, HKI.xlsx, ESy.xlsx
