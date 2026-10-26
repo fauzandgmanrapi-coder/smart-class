@@ -102,6 +102,27 @@ Login dengan user Auth dari langkah 2, lalu cek berurutan:
 
 ---
 
+## 🔄 Pembaruan v2026-10-26-v3 — Perbaikan 4 Bug Uji Coba
+
+Perbaikan: (1) Export SIAKAD corrupt (tag `<calcPr/>` self-closing di
+workbook.xml rusak saat disetel — sudah diperbaiki & teruji lokal),
+(2) kolom **Keterangan** pada absensi, (3) kontras ikon kalender/jam,
+(4) klarifikasi tombol Bagikan v2 (cache tab lama — tekan Ctrl+F5).
+
+**Tidak ada migrasi SQL untuk v3.** Cukup upload/timpa file ini ke repo
+GitHub `smart-class`:
+
+- `src/lib/siakad.ts`
+- `src/components/SmartClassApp.tsx`
+- `src/app/globals.css`
+- `package.json` dan `package-lock.json`
+- `VERSION.txt` dan `README.md`
+
+Setelah Vercel selesai deploy, **tekan Ctrl+F5** di tab aplikasi, lalu
+retes: Export SIAKAD harus terbuka di Excel; Isi Absensi punya kolom
+Keterangan; ikon kalender/jam di form Tambah Pertemuan tampak jelas;
+kartu Kelas punya tombol **🔗 Bagikan**.
+
 ## 🔄 Pembaruan v2026-10-26-v2 — Halaman Mahasiswa (untuk yang sudah deploy v1)
 
 Lakukan 3 langkah ini berurutan:
@@ -143,20 +164,22 @@ Lakukan cek ini pada folder hasil ekstrak ZIP **sebelum** upload ke GitHub,
 agar tidak tertukar dengan versi lama:
 
 1. Buka file **`VERSION.txt`** di root folder — isinya harus diawali
-   **`SMART CLASS ONLINE v2026-10-26-v2`**.
-2. Buka **`package.json`** — tekan Ctrl+F dan cari kata **`qrcode`**.
-   Harus ketemu (dependency baru v2 untuk QR Halaman Mahasiswa). Bila tidak
-   ketemu, Anda membuka folder yang salah/versi lama — ekstrak ulang ZIP
-   `smart-class-online-v2026-10-26-v2.zip` ke folder baru.
+   **`SMART CLASS ONLINE v2026-10-26-v3`**.
+2. Buka **`src/components/SmartClassApp.tsx`** — tekan Ctrl+F dan cari
+   teks **`Keterangan (opsional)`**. Harus ketemu (kolom keterangan
+   absensi baru di v3). Bila tidak ketemu, Anda membuka folder yang
+   salah/versi lama — ekstrak ulang ZIP
+   `smart-class-online-v2026-10-26-v3.zip` ke folder baru.
 3. Pastikan folder **`public/templates-siakad/`** berisi 4 file:
-   `PAI.xlsx`, `PGMI.xlsx`, `HKI.xlsx`, `ESy.xlsx`, dan ada file baru
+   `PAI.xlsx`, `PGMI.xlsx`, `HKI.xlsx`, `ESy.xlsx`, dan ada file
    **`src/app/m/[token]/page.tsx`** serta
    **`supabase/migrasi-v2-halaman-mahasiswa.sql`**.
 4. Ekstrak ZIP ke **folder baru** (jangan menimpa ekstraksi lama), upload dari
    folder baru itu, lalu hapus ZIP & folder lama agar tidak tertukar.
 
-Marker unik build ini: string **`qrcode`** di `package.json` dan baris pertama
-`VERSION.txt` = `SMART CLASS ONLINE v2026-10-26-v2`.
+Marker unik build ini: teks **`Keterangan (opsional)`** di
+`src/components/SmartClassApp.tsx` dan baris pertama
+`VERSION.txt` = `SMART CLASS ONLINE v2026-10-26-v3`.
 
 ---
 

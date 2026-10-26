@@ -97,8 +97,14 @@ export function patchTypedCell(rowXml: string, col: string, value: string | numb
 
 function updateCalcOnLoad(workbookXml: string): string {
   if (/<calcPr\b/.test(workbookXml)) {
-    return workbookXml.replace(/<calcPr\b([^>]*)\/?>/, (_m, attrs: string) => {
-      const clean = String(attrs || "").replace(/\s+(?:calcMode|fullCalcOnLoad|forceFullCalc)="[^"]*"/g, "");
+    // Hati-hati: tag template bisa self-closing (<calcPr ... />) — garis
+    // miring penutup TIDAK boleh ikut tertangkap ke dalam daftar atribut,
+    // karena hasilnya (<calcPr calcId="191029"/ calcMode=...) membuat
+    // workbook.xml tidak valid dan Excel menolak membuka file (corrupt).
+    return workbookXml.replace(/<calcPr\b([^>]*?)\s*\/?>/, (_m, attrs: string) => {
+      const clean = String(attrs || "")
+        .replace(/\s+(?:calcMode|fullCalcOnLoad|forceFullCalc)="[^"]*"/g, "")
+        .replace(/\/\s*$/, "");
       return `<calcPr${clean} calcMode="auto" fullCalcOnLoad="1" forceFullCalc="1"/>`;
     });
   }

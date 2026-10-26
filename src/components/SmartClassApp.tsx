@@ -428,6 +428,7 @@ export default function SmartClassApp() {
   const [searchMhs, setSearchMhs] = useState("");
   const [selectedPertemuanId, setSelectedPertemuanId] = useState<number | null>(null);
   const [attDraft, setAttDraft] = useState<Record<number, StatusAbsensi>>({});
+  const [attKetDraft, setAttKetDraft] = useState<Record<number, string>>({});
   const [nilaiDraft, setNilaiDraft] = useState<Record<string, string>>({});
   const [selectedTugasId, setSelectedTugasId] = useState<number | null>(null);
   const [kumpulDraft, setKumpulDraft] = useState<Record<number, { status: string; nilai: string; catatan: string; file_url: string; file_name: string }>>({});
@@ -1028,11 +1029,14 @@ export default function SmartClassApp() {
                           <button className="btn btn-small" onClick={() => {
                             setSelectedPertemuanId(p.id);
                             const draft: Record<number, StatusAbsensi> = {};
+                            const ketDraft: Record<number, string> = {};
                             for (const a of anggotaAktif) {
                               const existing = absensiList.find((x) => x.pertemuan_id === p.id && x.mahasiswa_id === a.mahasiswa_id);
                               draft[a.mahasiswa_id] = existing?.status ?? "Hadir";
+                              ketDraft[a.mahasiswa_id] = existing?.keterangan ?? "";
                             }
                             setAttDraft(draft);
+                            setAttKetDraft(ketDraft);
                           }}>Isi Absensi</button>
                           <button className="btn btn-small" onClick={() => openEditor({
                             table: "pertemuan", title: "Edit Pertemuan", id: p.id, numericKeys: ["pertemuan_ke"], nullableKeys: ["jam_mulai", "jam_selesai", "topik", "catatan"],
@@ -1066,6 +1070,7 @@ export default function SmartClassApp() {
                         const rows = anggotaAktif.map((a) => ({
                           pertemuan_id: selectedPertemuanId, mahasiswa_id: a.mahasiswa_id,
                           status: attDraft[a.mahasiswa_id] ?? "Hadir",
+                          keterangan: (attKetDraft[a.mahasiswa_id] ?? "").trim() || null,
                         }));
                         const { error } = await supabase.from("absensi").upsert(rows, { onConflict: "pertemuan_id,mahasiswa_id" });
                         if (error) { showToast(`Gagal menyimpan absensi: ${error.message}`); return; }
@@ -1073,7 +1078,7 @@ export default function SmartClassApp() {
                       })()}>💾 Simpan Absensi</button>
                     </div>
                     <table>
-                      <thead><tr><th>No</th><th>NIM</th><th>Nama</th><th>Status Kehadiran</th><th>% Hadir (semua pertemuan)</th></tr></thead>
+                      <thead><tr><th>No</th><th>NIM</th><th>Nama</th><th>Status Kehadiran</th><th>Keterangan</th><th>% Hadir (semua pertemuan)</th></tr></thead>
                       <tbody>
                         {anggotaAktif.map((a) => {
                           const m = mhsById.get(a.mahasiswa_id);
@@ -1087,11 +1092,18 @@ export default function SmartClassApp() {
                                   <button key={s} className={cur === s ? `sel-${s}` : ""} onClick={() => setAttDraft((prev) => ({ ...prev, [a.mahasiswa_id]: s }))}>{s}</button>
                                 ))}
                               </span></td>
+                              <td><input
+                                type="text"
+                                style={{ minWidth: 170 }}
+                                placeholder="Keterangan (opsional)"
+                                value={attKetDraft[a.mahasiswa_id] ?? ""}
+                                onChange={(e) => setAttKetDraft((prev) => ({ ...prev, [a.mahasiswa_id]: e.target.value }))}
+                              /></td>
                               <td>{rekapKehadiran(a.mahasiswa_id).persen}%</td>
                             </tr>
                           );
                         })}
-                        {anggotaAktif.length === 0 && <tr><td colSpan={5} className="empty">Belum ada anggota kelas aktif.</td></tr>}
+                        {anggotaAktif.length === 0 && <tr><td colSpan={6} className="empty">Belum ada anggota kelas aktif.</td></tr>}
                       </tbody>
                     </table>
                     <p className="muted" style={{ fontSize: 13 }}>Persentase kehadiran = (Hadir + Terlambat) ÷ total pertemuan tercatat × 100%.</p>
@@ -1648,7 +1660,7 @@ export default function SmartClassApp() {
               ))}
             </div>
             <p className="muted" style={{ fontSize: 13, marginTop: 16 }}>
-              Versi paket: SMART CLASS ONLINE v2026-10-26-v2 • Teknologi: Next.js + Supabase + Vercel.
+              Versi paket: SMART CLASS ONLINE v2026-10-26-v3 • Teknologi: Next.js + Supabase + Vercel.
               Program studi yang didukung Export SIAKAD: PGMI (86232), PAI (86208), Ekonomi Syariah (60206), Hukum Keluarga Islam (74230).
             </p>
           </section>
