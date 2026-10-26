@@ -349,6 +349,7 @@ table.report-table td.c, table.report-table th.c { text-align: center; }
 .sign-block { min-width: 220px; text-align: center; }
 .sign-space { height: 66px; }
 .sign-name { font-weight: 800; text-decoration: underline; }
+.report-foot { margin-top: 20px; text-align: center; font-size: 11px; color: var(--muted); }
 
 @page { size: A4 landscape; margin: 12mm; }
 @media print {

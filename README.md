@@ -102,6 +102,36 @@ Login dengan user Auth dari langkah 2, lalu cek berurutan:
 
 ---
 
+## 🔄 Pembaruan v2026-10-26-v7 — Tanda Tangan Atasan + Dashboard Monitoring
+
+Dua peningkatan — **tanpa migrasi SQL**:
+
+**A. Dashboard monitoring (baru).** Dashboard kelas aktif kini
+menampilkan diagram batang **Kehadiran per Pertemuan** dan diagram
+lingkaran **Distribusi Nilai Huruf** (kelompok A/B/C/D/E + legenda).
+Tidak ada yang perlu diatur — grafik terisi otomatis dari data
+absensi dan nilai yang sudah ada.
+
+**B. Blok tanda tangan atasan pada laporan.** Kaki laporan cetak
+kini resmi dan bisa diatur:
+
+1. Di menu **Pengaturan → Tanda Tangan Laporan**, isi **Jabatan
+   Atasan** (mis. "Rektor IAI DDI Maros" atau "Ketua Program Studi
+   PAI"), **Nama Atasan**, **NIDN Atasan** (opsional), dan **Kota
+   Tanda Tangan** (bawaan: Maros), lalu **Simpan Tanda Tangan**.
+2. Buka **Rekap & Laporan → Pratinjau**: blok kiri kini
+   "Mengetahui, — {jabatan atasan}" dengan nama atasan bergaris
+   bawah + NIDN; blok kanan "{Kota}, {tanggal} — Dosen Pengampu,"
+   dengan nama + NIDN dosen kelas. Blok lama "Dicetak pada /
+   {Nama Aplikasi} Online" menjadi catatan kecil di bawah dokumen.
+3. Bila Nama Atasan dikosongkan, blok Mengetahui tidak tampil.
+4. Upload 2 file yang berubah: `src/components/SmartClassApp.tsx`
+   dan `src/app/globals.css` (atau seluruh isi paket seperti
+   biasa). Setelah deploy, Ctrl+F5 lalu periksa Pengaturan dan
+   pratinjau laporan.
+
+---
+
 ## 🔄 Pembaruan v2026-10-26-v6 — Logo Smart Class & Kredit Manrapi EduTech
 
 Pembaruan tampilan (branding) — **tanpa migrasi SQL**:
@@ -219,22 +249,22 @@ Lakukan cek ini pada folder hasil ekstrak ZIP **sebelum** upload ke GitHub,
 agar tidak tertukar dengan versi lama:
 
 1. Buka file **`VERSION.txt`** di root folder — isinya harus diawali
-   **`SMART CLASS ONLINE v2026-10-26-v6`**.
-2. Buka **`src/app/login/page.tsx`** — tekan Ctrl+F dan cari
-   teks **`logo-smartclass`**. Harus ketemu (logo baru di v6).
-   Bila tidak ketemu, Anda membuka folder yang salah/versi lama —
-   ekstrak ulang ZIP `smart-class-online-v2026-10-26-v6.zip`
-   ke folder baru.
+   **`SMART CLASS ONLINE v2026-10-26-v7`**.
+2. Buka **`src/components/SmartClassApp.tsx`** — tekan Ctrl+F dan
+   cari teks **`Tanda Tangan Laporan`**. Harus ketemu (fitur baru
+   di v7). Bila tidak ketemu, Anda membuka folder yang
+   salah/versi lama — ekstrak ulang ZIP
+   `smart-class-online-v2026-10-26-v7.zip` ke folder baru.
 3. Pastikan folder **`public/`** berisi **`logo-smartclass.png`** dan
    **`logo-manrapi.png`**, dan folder **`public/templates-siakad/`**
    berisi 4 file: `PAI.xlsx`, `PGMI.xlsx`, `HKI.xlsx`, `ESy.xlsx`.
 4. Ekstrak ZIP ke **folder baru** (jangan menimpa ekstraksi lama), upload dari
    folder baru itu, lalu hapus ZIP & folder lama agar tidak tertukar.
 
-Marker unik build ini: teks **`logo-smartclass`** di
-`src/app/login/page.tsx`, teks **`Dikembangkan oleh`** di file yang
-sama dan di `src/components/SmartClassApp.tsx`, serta baris pertama
-`VERSION.txt` = `SMART CLASS ONLINE v2026-10-26-v6`.
+Marker unik build ini: teks **`Tanda Tangan Laporan`**,
+**`Dokumen ini dicetak dari`**, dan **`Distribusi Nilai Huruf`**
+di `src/components/SmartClassApp.tsx`, serta baris pertama
+`VERSION.txt` = `SMART CLASS ONLINE v2026-10-26-v7`.
 
 ---
 

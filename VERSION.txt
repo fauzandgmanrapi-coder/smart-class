@@ -1,57 +1,69 @@
-SMART CLASS ONLINE v2026-10-26-v6
+SMART CLASS ONLINE v2026-10-26-v7
 ==================================
 
-Pembaruan dari v2026-10-26-v5: LOGO SMART CLASS BARU di halaman
-login + KREDIT PENGEMBANG Manrapi EduTech di halaman login dan
-menu Tentang. Pembaruan ini murni tampilan — TIDAK ada migrasi
-SQL dan tidak ada perubahan data/fitur.
+Pembaruan dari v2026-10-26-v6: (1) BLOK TANDA TANGAN LAPORAN
+yang bisa diatur — kini ada kolom atasan (Rektor/Ketua Prodi/
+Dekan) sebagai pihak "Mengetahui" di kaki laporan cetak; dan
+(2) DASHBOARD MONITORING dengan diagram batang kehadiran per
+pertemuan + diagram lingkaran (donut) distribusi nilai huruf.
+TIDAK ada migrasi SQL: pengaturan tanda tangan tersimpan
+sebagai kunci biasa di tabel pengaturan yang sudah ada.
 
 Marker self-check: baris pertama file ini persis
-"SMART CLASS ONLINE v2026-10-26-v6", di src/app/login/page.tsx
-ada teks "logo-smartclass" dan "Dikembangkan oleh", dan folder
-public/ berisi logo-smartclass.png + logo-manrapi.png.
+"SMART CLASS ONLINE v2026-10-26-v7", dan di
+src/components/SmartClassApp.tsx ada teks "Tanda Tangan Laporan",
+"Dokumen ini dicetak dari", dan "Distribusi Nilai Huruf".
 
-Yang baru di v6:
-- Halaman login kini menampilkan logo Smart Class (topi wisuda
-  emas di atas buku terbuka, plakat gradasi navy-biru) tepat di
-  atas tulisan "Smart Class Online", menggantikan lencana teks
-  "SC" sebelumnya.
-- Kaki halaman login menampilkan kredit kecil: "Dikembangkan
-  oleh [logo] Manrapi EduTech".
-- Menu Tentang menampilkan kredit yang sama di bawah baris
-  versi paket, beserta tagline "Solusi Digital untuk Sekolah
-  & Kampus".
+Yang baru di v7:
+- Dashboard kini punya dua panel monitoring baru untuk kelas
+  aktif: "Kehadiran per Pertemuan" (diagram batang persentase
+  hadir + terlambat tiap pertemuan yang sudah diabsen) dan
+  "Distribusi Nilai Huruf" (diagram lingkaran kelompok huruf
+  A/B/C/D/E dari nilai akhir mahasiswa yang sudah dinilai,
+  lengkap dengan legenda jumlah + persentase). Keduanya
+  memakai data yang sudah ada — tidak ada input baru.
+- Menu Pengaturan punya bagian "Tanda Tangan Laporan" berisi
+  empat kolom: Jabatan Atasan, Nama Atasan, NIDN Atasan
+  (opsional), dan Kota Tanda Tangan (bawaan: Maros).
+- Kaki laporan cetak (Rekap & Laporan) kini berformat resmi:
+  * Kiri: "Mengetahui," + jabatan atasan + ruang tanda tangan +
+    nama atasan (garis bawah) + NIDN — hanya tampil bila Nama
+    Atasan diisi.
+  * Kanan: "{Kota}, {tanggal}" + "Dosen Pengampu," + ruang
+    tanda tangan + nama dosen pengampu kelas + NIDN-nya.
+  * Blok lama "Dicetak pada / {Nama Aplikasi} Online" turun
+    menjadi catatan kecil di paling bawah dokumen:
+    "Dokumen ini dicetak dari ... Online pada ... • {institusi}".
 
-File yang berubah dari v5:
-- src/app/login/page.tsx        (logo baru + footer kredit)
-- src/app/globals.css           (gaya .login-logo-img & .dev-credit)
-- src/components/SmartClassApp.tsx (kredit di Tentang + versi)
-- public/logo-smartclass.png    (BARU)
-- public/logo-manrapi.png       (BARU)
+File yang berubah dari v6:
+- src/components/SmartClassApp.tsx (formulir pengaturan tanda
+  tangan + kaki laporan baru + versi)
+- src/app/globals.css           (gaya .report-foot)
 - package.json, package-lock.json, VERSION.txt, README.md
 
-Paket ini memuat seluruh fitur v2-v5 (Halaman Mahasiswa,
+Paket ini memuat seluruh fitur v2-v6 (Halaman Mahasiswa,
 keterangan absensi, perbaikan Export SIAKAD, ikon kontras,
-Pengumpulan Tugas Online). Bila melompat dari versi sebelum v5,
-jalankan juga migrasi supabase/migrasi-v5-pengumpulan-online.sql.
+Pengumpulan Tugas Online, logo Smart Class + kredit Manrapi
+EduTech). Bila melompat dari versi sebelum v5, jalankan juga
+migrasi supabase/migrasi-v5-pengumpulan-online.sql.
 
 Isi paket lengkap:
-- package.json / package-lock.json — manifest versi 1.3.1
+- package.json / package-lock.json — manifest versi 1.4.0
   (next, react, @supabase/supabase-js, xlsx, jszip, qrcode)
 - next.config.mjs, tsconfig.json, vercel.json, .env.example, .gitignore
-- README.md — panduan deploy + langkah pembaruan v2 s.d. v6
+- README.md — panduan deploy + langkah pembaruan v2 s.d. v7
 - VERSION.txt — file ini
-- src/app/ — layout, / (pengarah), /login (logo + kredit v6),
+- src/app/ — layout, / (pengarah), /login (logo + kredit),
   /dashboard, /m/[token] (Halaman Mahasiswa + pengumpulan),
   globals.css
 - src/components/ — SmartClassApp.tsx (11 modul + panel Bagikan +
-  keterangan absensi + info waktu kumpul + kredit Tentang),
-  Setup.tsx
+  keterangan absensi + pengumpulan online + tanda tangan
+  laporan), Setup.tsx
 - src/lib/ — supabase.ts, types.ts, siakad.ts (export SIAKAD)
 - supabase/schema.sql — 15 tabel + fungsi halaman_mahasiswa &
   kumpul_tugas_mahasiswa, RLS, seed
 - supabase/migrasi-v2-halaman-mahasiswa.sql — migrasi v1 -> v2
 - supabase/migrasi-v5-pengumpulan-online.sql — migrasi -> v5
-- public/logo-smartclass.png — logo aplikasi (v6)
-- public/logo-manrapi.png — logo Manrapi EduTech (v6)
+- public/logo-smartclass.png — logo aplikasi
+- public/logo-manrapi.png — logo Manrapi EduTech
 - public/templates-siakad/ — PAI.xlsx, PGMI.xlsx, HKI.xlsx, ESy.xlsx

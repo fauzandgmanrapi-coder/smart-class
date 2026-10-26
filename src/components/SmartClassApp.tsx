@@ -700,6 +700,77 @@ export default function SmartClassApp() {
             </div>
             <div className="grid-2">
               <div className="panel">
+                <h3>Kehadiran per Pertemuan</h3>
+                <p className="sub">Persentase kehadiran (hadir + terlambat) kelas aktif</p>
+                {(() => {
+                  const data: { ke: number; topik: string; pct: number }[] = [];
+                  for (const p of [...pertemuanAktif].sort((a, b) => a.pertemuan_ke - b.pertemuan_ke)) {
+                    const rows = absensiList.filter((a) => a.pertemuan_id === p.id);
+                    if (!rows.length) continue;
+                    const efektif = rows.filter((r) => r.status === "Hadir" || r.status === "Terlambat").length;
+                    data.push({ ke: p.pertemuan_ke, topik: p.topik || "", pct: Math.round((efektif / rows.length) * 100) });
+                  }
+                  if (data.length === 0) return <p className="empty">Belum ada data absensi untuk kelas aktif.</p>;
+                  return (
+                    <div className="bars">
+                      {data.map((d) => (
+                        <div key={d.ke} className="bar-col" title={`Pertemuan ${d.ke} — ${d.topik}`}>
+                          <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ink)" }}>{d.pct}%</span>
+                          <div className={`bar${d.pct < 75 ? " alt" : ""}`} style={{ height: `${Math.max(d.pct, 4)}%` }} />
+                          <span>P{d.ke}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+              <div className="panel">
+                <h3>Distribusi Nilai Huruf</h3>
+                <p className="sub">Nilai akhir mahasiswa kelas aktif yang sudah dinilai</p>
+                {(() => {
+                  if (Math.abs(totalBobot - 100) >= 0.01) return <p className="empty">Total bobot komponen belum 100% — distribusi nilai belum dapat ditampilkan.</p>;
+                  const groups = [
+                    { label: "A (A / A-)", color: "#0284c7", letters: ["A", "A-"] },
+                    { label: "B (B+ / B / B-)", color: "#38bdf8", letters: ["B+", "B", "B-"] },
+                    { label: "C (C+ / C / C-)", color: "#e9b949", letters: ["C+", "C", "C-"] },
+                    { label: "D", color: "#d97706", letters: ["D"] },
+                    { label: "E", color: "#dc2626", letters: ["E"] },
+                  ];
+                  const dinilai = anggotaAktif.filter((a) => nilaiList.some((n) => n.kelas_id === activeKelasId && n.mahasiswa_id === a.mahasiswa_id));
+                  const total = dinilai.length;
+                  if (total === 0) return <p className="empty">Belum ada nilai tersimpan untuk kelas aktif.</p>;
+                  const counts = groups.map((g) => ({ ...g, count: dinilai.filter((a) => g.letters.includes(nilaiHuruf(finalGrade(a.mahasiswa_id)))).length })).filter((g) => g.count > 0);
+                  const C = 2 * Math.PI * 52;
+                  let acc = 0;
+                  const segs = counts.map((g) => { const len = (g.count / total) * C; const s = { ...g, len, off: acc }; acc += len; return s; });
+                  return (
+                    <div className="donut-wrap">
+                      <svg viewBox="0 0 140 140" style={{ width: 148, height: 148, flex: "0 0 auto" }} role="img" aria-label="Diagram lingkaran distribusi nilai huruf">
+                        <circle cx="70" cy="70" r="52" fill="none" stroke="#E2E8F0" strokeWidth="22" />
+                        {segs.map((g) => (
+                          <circle key={g.label} cx="70" cy="70" r="52" fill="none" stroke={g.color} strokeWidth="22"
+                            strokeDasharray={`${Math.max(g.len - 2, 0.5)} ${C - g.len + 2}`} strokeDashoffset={-g.off}
+                            transform="rotate(-90 70 70)" />
+                        ))}
+                        <text x="70" y="67" textAnchor="middle" fontSize="23" fontWeight="800" fill="#172554">{total}</text>
+                        <text x="70" y="86" textAnchor="middle" fontSize="10.5" fill="#64748B">mahasiswa</text>
+                      </svg>
+                      <div className="donut-legend">
+                        {segs.map((g) => (
+                          <div key={g.label} className="legend-row">
+                            <span className="dot" style={{ background: g.color }} />
+                            <span>{g.label}</span>
+                            <span className="val">{g.count} ({Math.round((g.count / total) * 100)}%)</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+            <div className="grid-2">
+              <div className="panel">
                 <h3>Pertemuan Terakhir Kelas Aktif</h3>
                 <p className="sub">Jadwal &amp; topik pertemuan terbaru</p>
                 {pertemuanAktif.length === 0 && <p className="empty">Belum ada pertemuan untuk kelas aktif.</p>}
@@ -1498,6 +1569,39 @@ export default function SmartClassApp() {
               showToast("Pengaturan aplikasi berhasil disimpan.");
             })()}>Simpan Pengaturan</button>
 
+            <h3 style={{ margin: "26px 0 8px" }}>Tanda Tangan Laporan</h3>
+            <p className="muted" style={{ fontSize: 13, maxWidth: 720, margin: "0 0 10px" }}>
+              Blok tanda tangan di kaki laporan cetak (Rekap &amp; Laporan). Isi nama atasan
+              (Rektor, Ketua Program Studi, Dekan, dan sebagainya) agar tampil sebagai pihak
+              yang <em>Mengetahui</em> di sisi kiri, berhadapan dengan tanda tangan Dosen Pengampu.
+              Bila Nama Atasan dikosongkan, blok Mengetahui tidak tampil.
+            </p>
+            <div className="form-grid" style={{ maxWidth: 720 }}>
+              <label>Jabatan Atasan
+                <input id="set-ttd-jabatan" placeholder="cth. Rektor IAI DDI Maros / Ketua Program Studi PAI" defaultValue={settings.ttd_jabatan ?? ""} key={`tj-${settings.ttd_jabatan ?? ""}`} />
+              </label>
+              <label>Nama Atasan
+                <input id="set-ttd-nama" placeholder="Nama lengkap + gelar atasan" defaultValue={settings.ttd_nama ?? ""} key={`tn-${settings.ttd_nama ?? ""}`} />
+              </label>
+              <label>NIDN Atasan (opsional)
+                <input id="set-ttd-nidn" placeholder="NIDN atasan" defaultValue={settings.ttd_nidn ?? ""} key={`ti-${settings.ttd_nidn ?? ""}`} />
+              </label>
+              <label>Kota Tanda Tangan
+                <input id="set-ttd-kota" placeholder="cth. Maros" defaultValue={settings.ttd_kota ?? "Maros"} key={`tk-${settings.ttd_kota ?? ""}`} />
+              </label>
+            </div>
+            <button className="btn btn-primary" onClick={() => void (async () => {
+              const jab = (document.getElementById("set-ttd-jabatan") as HTMLInputElement | null)?.value.trim() ?? "";
+              const nm = (document.getElementById("set-ttd-nama") as HTMLInputElement | null)?.value.trim() ?? "";
+              const ni = (document.getElementById("set-ttd-nidn") as HTMLInputElement | null)?.value.trim() ?? "";
+              const kt = (document.getElementById("set-ttd-kota") as HTMLInputElement | null)?.value.trim() ?? "";
+              await saveSetting("ttd_jabatan", jab);
+              await saveSetting("ttd_nama", nm);
+              await saveSetting("ttd_nidn", ni);
+              await saveSetting("ttd_kota", kt);
+              showToast("Pengaturan tanda tangan laporan berhasil disimpan.");
+            })()}>Simpan Tanda Tangan</button>
+
             <h3 style={{ margin: "26px 0 8px" }}>Tahun Akademik</h3>
             <div className="module-head" style={{ marginBottom: 8 }}>
               <span className="muted" style={{ fontSize: 13 }}>Hanya satu tahun akademik yang aktif pada satu waktu.</span><span className="spacer" />
@@ -1660,7 +1764,7 @@ export default function SmartClassApp() {
               ))}
             </div>
             <p className="muted" style={{ fontSize: 13, marginTop: 16 }}>
-              Versi paket: SMART CLASS ONLINE v2026-10-26-v6 • Teknologi: Next.js + Supabase + Vercel.
+              Versi paket: SMART CLASS ONLINE v2026-10-26-v7 • Teknologi: Next.js + Supabase + Vercel.
               Program studi yang didukung Export SIAKAD: PGMI (86232), PAI (86208), Ekonomi Syariah (60206), Hukum Keluarga Islam (74230).
             </p>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
@@ -1812,20 +1916,27 @@ export default function SmartClassApp() {
             )}
 
             <div className="report-sign">
+              {settings.ttd_nama ? (
+                <div className="sign-block">
+                  <div>Mengetahui,</div>
+                  <div>{settings.ttd_jabatan || "Pimpinan"}</div>
+                  <div className="sign-space" />
+                  <div className="sign-name">{settings.ttd_nama}</div>
+                  {settings.ttd_nidn ? <div>NIDN. {settings.ttd_nidn}</div> : null}
+                </div>
+              ) : (
+                <div className="sign-block" />
+              )}
               <div className="sign-block">
-                <div>Mengetahui,</div>
-                <div>Dosen Pengampu</div>
+                <div>{settings.ttd_kota || "Maros"}, {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</div>
+                <div>Dosen Pengampu,</div>
                 <div className="sign-space" />
                 <div className="sign-name">{dosenById.get(activeKelas.dosen_id)?.nama ?? "-"}</div>
                 <div>NIDN. {dosenById.get(activeKelas.dosen_id)?.nidn ?? "-"}</div>
               </div>
-              <div className="sign-block">
-                <div>Dicetak pada</div>
-                <div>{new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</div>
-                <div className="sign-space" />
-                <div className="sign-name">{appName} Online</div>
-                <div>{institusi}</div>
-              </div>
+            </div>
+            <div className="report-foot">
+              Dokumen ini dicetak dari {appName} Online pada {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })} • {institusi}
             </div>
           </div>
           <div className="modal-actions no-print">
