@@ -1660,9 +1660,16 @@ export default function SmartClassApp() {
               ))}
             </div>
             <p className="muted" style={{ fontSize: 13, marginTop: 16 }}>
-              Versi paket: SMART CLASS ONLINE v2026-10-26-v5 • Teknologi: Next.js + Supabase + Vercel.
+              Versi paket: SMART CLASS ONLINE v2026-10-26-v6 • Teknologi: Next.js + Supabase + Vercel.
               Program studi yang didukung Export SIAKAD: PGMI (86232), PAI (86208), Ekonomi Syariah (60206), Hukum Keluarga Islam (74230).
             </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
+              <span className="muted" style={{ fontSize: 13.5 }}>Dikembangkan oleh</span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo-manrapi.png" alt="Logo Manrapi EduTech" style={{ width: 25, height: 25, borderRadius: 7, display: "block" }} />
+              <strong style={{ fontSize: 13.5 }}>Manrapi EduTech</strong>
+              <span className="muted" style={{ fontSize: 13.5 }}>— Solusi Digital untuk Sekolah &amp; Kampus</span>
+            </div>
           </section>
         )}
       </main>

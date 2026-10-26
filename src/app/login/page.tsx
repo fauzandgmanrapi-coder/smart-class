@@ -46,7 +46,8 @@ export default function LoginPage() {
   return (
     <main className="login-wrap">
       <form className="login-card" onSubmit={onSubmit}>
-        <div className="login-logo">SC</div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="login-logo-img" src="/logo-smartclass.png" alt="Logo Smart Class" />
         <h1>Smart Class Online</h1>
         <p className="muted">
           Masuk dengan akun dosen yang terdaftar untuk mengelola data
@@ -83,6 +84,12 @@ export default function LoginPage() {
           Tidak ada pendaftaran publik, demi keamanan data mahasiswa.
         </p>
       </form>
+      <footer className="dev-credit">
+        <span>Dikembangkan oleh</span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-manrapi.png" alt="Logo Manrapi EduTech" />
+        <strong>Manrapi EduTech</strong>
+      </footer>
     </main>
   );
 }

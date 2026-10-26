@@ -1,64 +1,57 @@
-SMART CLASS ONLINE v2026-10-26-v5
+SMART CLASS ONLINE v2026-10-26-v6
 ==================================
 
-Fitur baru dari v2026-10-26-v4: PENGUMPULAN TUGAS ONLINE lewat
-Halaman Mahasiswa (link publik per kelas).
+Pembaruan dari v2026-10-26-v5: LOGO SMART CLASS BARU di halaman
+login + KREDIT PENGEMBANG Manrapi EduTech di halaman login dan
+menu Tentang. Pembaruan ini murni tampilan — TIDAK ada migrasi
+SQL dan tidak ada perubahan data/fitur.
+
 Marker self-check: baris pertama file ini persis
-"SMART CLASS ONLINE v2026-10-26-v5", dan di
-src/app/m/[token]/page.tsx ada teks "Kumpulkan Tugas".
+"SMART CLASS ONLINE v2026-10-26-v6", di src/app/login/page.tsx
+ada teks "logo-smartclass" dan "Dikembangkan oleh", dan folder
+public/ berisi logo-smartclass.png + logo-manrapi.png.
 
-Cara kerja fitur baru:
-- Setiap tugas di halaman publik kini punya tombol
-  "📤 Kumpulkan Tugas" yang membuka formulir: NIM, Nama Lengkap,
-  Tautan File (Google Drive, dll.), Nama File (opsional), dan
-  Catatan (opsional).
-- Tanpa login — sebagai gantinya server memeriksa NIM + Nama
-  harus cocok dengan anggota AKTIF kelas pemilik link (fungsi
-  kumpul_tugas_mahasiswa). Daftar mahasiswa TIDAK pernah
-  ditampilkan di halaman publik.
-- Mengumpulkan ulang dengan NIM yang sama menimpa kiriman
-  sebelumnya, KECUALI yang sudah dinilai dosen (ditolak).
-- Lewat deadline -> status otomatis "Terlambat" (deadline
-  ditafsirkan sebagai waktu Asia/Makassar/WITA).
-- Hasilnya masuk tabel pengumpulan_tugas yang sama: dosen
-  melihatnya di Materi & Tugas > Pengumpulan lengkap dengan
-  waktu kirim ("Dikumpulkan: ..."), lalu menilai seperti biasa.
+Yang baru di v6:
+- Halaman login kini menampilkan logo Smart Class (topi wisuda
+  emas di atas buku terbuka, plakat gradasi navy-biru) tepat di
+  atas tulisan "Smart Class Online", menggantikan lencana teks
+  "SC" sebelumnya.
+- Kaki halaman login menampilkan kredit kecil: "Dikembangkan
+  oleh [logo] Manrapi EduTech".
+- Menu Tentang menampilkan kredit yang sama di bawah baris
+  versi paket, beserta tagline "Solusi Digital untuk Sekolah
+  & Kampus".
 
-WAJIB: jalankan migrasi supabase/migrasi-v5-pengumpulan-online.sql
-di SQL Editor proyek Supabase "smart-class" (satu kali, aman
-diulang). Migrasi menambah fungsi kumpul_tugas_mahasiswa dan
-memperbarui halaman_mahasiswa agar menyertakan id tugas.
-
-Paket ini juga memuat perbaikan v4 (ikon tanggal/jam kontras di
-globals.css) dan seluruh perbaikan v3 + fitur v2 — bila Anda
-melompat dari v3, cukup ikuti langkah di bawah ini.
-
-File yang berubah dari v3:
-- src/app/m/[token]/page.tsx    (formulir pengumpulan)
-- supabase/migrasi-v5-pengumpulan-online.sql  (BARU — jalankan!)
-- supabase/schema.sql            (fungsi baru untuk instalasi segar)
-- src/app/globals.css            (ikon kontras v4 + gaya formulir)
-- src/components/SmartClassApp.tsx (info waktu kumpul + versi)
+File yang berubah dari v5:
+- src/app/login/page.tsx        (logo baru + footer kredit)
+- src/app/globals.css           (gaya .login-logo-img & .dev-credit)
+- src/components/SmartClassApp.tsx (kredit di Tentang + versi)
+- public/logo-smartclass.png    (BARU)
+- public/logo-manrapi.png       (BARU)
 - package.json, package-lock.json, VERSION.txt, README.md
 
-Logika SQL fitur ini telah diuji otomatis di Postgres lokal:
-10 skenario lulus (nama/NIM/tautan salah ditolak, kirim pertama,
-kirim ulang menimpa, kiriman ter-nilai terkunci, status Terlambat,
-dan penolakan saat link nonaktif).
+Paket ini memuat seluruh fitur v2-v5 (Halaman Mahasiswa,
+keterangan absensi, perbaikan Export SIAKAD, ikon kontras,
+Pengumpulan Tugas Online). Bila melompat dari versi sebelum v5,
+jalankan juga migrasi supabase/migrasi-v5-pengumpulan-online.sql.
 
 Isi paket lengkap:
-- package.json / package-lock.json — manifest (next, react,
-  @supabase/supabase-js, xlsx, jszip, qrcode)
+- package.json / package-lock.json — manifest versi 1.3.1
+  (next, react, @supabase/supabase-js, xlsx, jszip, qrcode)
 - next.config.mjs, tsconfig.json, vercel.json, .env.example, .gitignore
-- README.md — panduan deploy + langkah pembaruan v2 s.d. v5
+- README.md — panduan deploy + langkah pembaruan v2 s.d. v6
 - VERSION.txt — file ini
-- src/app/ — layout, / (pengarah), /login, /dashboard,
-  /m/[token] (Halaman Mahasiswa + pengumpulan), globals.css
+- src/app/ — layout, / (pengarah), /login (logo + kredit v6),
+  /dashboard, /m/[token] (Halaman Mahasiswa + pengumpulan),
+  globals.css
 - src/components/ — SmartClassApp.tsx (11 modul + panel Bagikan +
-  keterangan absensi + info waktu kumpul), Setup.tsx
+  keterangan absensi + info waktu kumpul + kredit Tentang),
+  Setup.tsx
 - src/lib/ — supabase.ts, types.ts, siakad.ts (export SIAKAD)
 - supabase/schema.sql — 15 tabel + fungsi halaman_mahasiswa &
   kumpul_tugas_mahasiswa, RLS, seed
 - supabase/migrasi-v2-halaman-mahasiswa.sql — migrasi v1 -> v2
 - supabase/migrasi-v5-pengumpulan-online.sql — migrasi -> v5
+- public/logo-smartclass.png — logo aplikasi (v6)
+- public/logo-manrapi.png — logo Manrapi EduTech (v6)
 - public/templates-siakad/ — PAI.xlsx, PGMI.xlsx, HKI.xlsx, ESy.xlsx

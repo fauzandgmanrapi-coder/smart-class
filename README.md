@@ -102,6 +102,26 @@ Login dengan user Auth dari langkah 2, lalu cek berurutan:
 
 ---
 
+## 🔄 Pembaruan v2026-10-26-v6 — Logo Smart Class & Kredit Manrapi EduTech
+
+Pembaruan tampilan (branding) — **tanpa migrasi SQL**:
+
+1. **Logo Smart Class baru** di halaman login, menggantikan lencana
+   teks "SC": topi wisuda emas di atas buku terbuka pada plakat
+   gradasi navy–biru (file `public/logo-smartclass.png`).
+2. **Kredit pengembang** "Dikembangkan oleh [logo] Manrapi EduTech"
+   di kaki halaman login dan di menu **Tentang**
+   (file `public/logo-manrapi.png`).
+3. Upload 5 file yang berubah: `src/app/login/page.tsx`,
+   `src/components/SmartClassApp.tsx`, `src/app/globals.css`,
+   `package.json`, dan 2 logo baru di `public/`
+   (`logo-smartclass.png`, `logo-manrapi.png`) — atau upload seluruh
+   isi paket seperti biasa. Setelah deploy, buka `/login` dengan
+   Ctrl+F5: logo baru tampil di atas tulisan "Smart Class Online"
+   dan kredit Manrapi EduTech tampil di kaki halaman.
+
+---
+
 ## 🔄 Pembaruan v2026-10-26-v5 — Pengumpulan Tugas Online
 
 Mahasiswa kini bisa **mengumpulkan tugas langsung dari Halaman
@@ -199,22 +219,22 @@ Lakukan cek ini pada folder hasil ekstrak ZIP **sebelum** upload ke GitHub,
 agar tidak tertukar dengan versi lama:
 
 1. Buka file **`VERSION.txt`** di root folder — isinya harus diawali
-   **`SMART CLASS ONLINE v2026-10-26-v5`**.
-2. Buka **`src/app/m/[token]/page.tsx`** — tekan Ctrl+F dan cari
-   teks **`Kumpulkan Tugas`**. Harus ketemu (formulir pengumpulan
-   baru di v5). Bila tidak ketemu, Anda membuka folder yang
-   salah/versi lama — ekstrak ulang ZIP
-   `smart-class-online-v2026-10-26-v5.zip` ke folder baru.
-3. Pastikan folder **`public/templates-siakad/`** berisi 4 file:
-   `PAI.xlsx`, `PGMI.xlsx`, `HKI.xlsx`, `ESy.xlsx`, dan ada file
-   **`src/app/m/[token]/page.tsx`** serta
-   **`supabase/migrasi-v2-halaman-mahasiswa.sql`**.
+   **`SMART CLASS ONLINE v2026-10-26-v6`**.
+2. Buka **`src/app/login/page.tsx`** — tekan Ctrl+F dan cari
+   teks **`logo-smartclass`**. Harus ketemu (logo baru di v6).
+   Bila tidak ketemu, Anda membuka folder yang salah/versi lama —
+   ekstrak ulang ZIP `smart-class-online-v2026-10-26-v6.zip`
+   ke folder baru.
+3. Pastikan folder **`public/`** berisi **`logo-smartclass.png`** dan
+   **`logo-manrapi.png`**, dan folder **`public/templates-siakad/`**
+   berisi 4 file: `PAI.xlsx`, `PGMI.xlsx`, `HKI.xlsx`, `ESy.xlsx`.
 4. Ekstrak ZIP ke **folder baru** (jangan menimpa ekstraksi lama), upload dari
    folder baru itu, lalu hapus ZIP & folder lama agar tidak tertukar.
 
-Marker unik build ini: teks **`Kumpulkan Tugas`** di
-`src/app/m/[token]/page.tsx` dan baris pertama
-`VERSION.txt` = `SMART CLASS ONLINE v2026-10-26-v5`.
+Marker unik build ini: teks **`logo-smartclass`** di
+`src/app/login/page.tsx`, teks **`Dikembangkan oleh`** di file yang
+sama dan di `src/components/SmartClassApp.tsx`, serta baris pertama
+`VERSION.txt` = `SMART CLASS ONLINE v2026-10-26-v6`.
 
 ---
 
