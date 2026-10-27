@@ -49,6 +49,23 @@ function badRequest() {
   return NextResponse.json({ error: "bad_request" }, { status: 400 });
 }
 
+// Pembersih markdown (v9.0.5): panel chat merender jawaban sebagai
+// teks polos, jadi sisa format markdown dari model — terutama
+// pasangan tebal **kata** — tampil mentah. Fungsi ini membuang
+// tanda itu dari balasan AKHIR sebelum dikirim ke klien: tebal
+// berpasangan dibuka isinya, "**" yatim dibuang, bullet "*" di
+// awal baris menjadi "•", dan penanda judul "#" dibuang. Isi lain
+// tidak disentuh (satu "*" tunggal di tengah baris tetap utuh).
+// Prompt di asisten-pengetahuan.ts juga meminta teks polos dari
+// sumbernya; fungsi ini jaminan akhirnya.
+function bersihkanMarkdown(teks: string): string {
+  return teks
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*\*/g, "")
+    .replace(/^\s*\*\s+/gm, "• ")
+    .replace(/^#{1,6}\s+/gm, "");
+}
+
 // Hasil satu percobaan ke satu model.
 type HasilPercobaan =
   | { tipe: "ok"; reply: string }
@@ -222,7 +239,7 @@ export async function POST(req: NextRequest) {
       const hasil = await cobaSekali(model);
 
       if (hasil.tipe === "ok") {
-        return NextResponse.json({ reply: hasil.reply });
+        return NextResponse.json({ reply: bersihkanMarkdown(hasil.reply) });
       }
       if (hasil.tipe === "kosong") {
         return NextResponse.json({ error: "upstream" }, { status: 502 });

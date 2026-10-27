@@ -1,76 +1,67 @@
-SMART CLASS ONLINE v2026-10-28-v9.0.4
+SMART CLASS ONLINE v2026-10-28-v9.0.5
 ====================================
 
-Perbaikan MIKRO dari v2026-10-28-v9.0.3: keandalan route
-/api/asisten (timeout & kecepatan model), menggantikan
-paket v9.0.3. TIDAK ada migrasi SQL baru — folder
+Perbaikan MIKRO dari v2026-10-28-v9.0.4: jawaban Asisten
+Smart Class kini tampil bersih sebagai teks polos —
+tanda markdown (terutama **) dihilangkan. Menggantikan
+paket v9.0.4. TIDAK ada migrasi SQL baru — folder
 supabase/ identik dengan v9/v8.
 
-Diagnosis (terverifikasi dari live): dengan rantai 3.x
-v9.0.3 asisten SEMPAT menjawab benar (HTTP 200), tetapi
-panggilan berikutnya gagal 502 {upstream_status:0,
-upstream_code:"FETCH_FAILED"} — termasuk probe satu
-giliran. Artinya: model pertama (gemini-3.8-flash, free
-tier) kadang merespons LEBIH LAMBAT dari timeout
-per-percobaan 20 detik sehingga fetch dibatalkan, dan
-desain v9.0.3 TIDAK jatuh ke model berikutnya saat fetch
-gagal/timeout. Ini BUKAN bug riwayat percakapan.
+Latar: panel chat merender jawaban sebagai teks polos
+(pre-wrap), sehingga format tebal markdown dari model
+tampil mentah sebagai **kata**. User meminta tanda itu
+dihilangkan agar jawaban mudah dibaca.
 
-Yang berubah di v9.0.4 (HANYA src/app/api/asisten/route.ts):
-- Ditambahkan export maxDuration = 60 agar fungsi boleh
-  memuat beberapa percobaan berurutan.
-- DAFTAR_MODEL baru — model LITE di depan (lebih cepat,
-  kuota lebih ringan; kualitas cukup untuk tanya-jawab
-  panduan), model penuh tetap cadangan di belakang:
-  "gemini-3.1-flash-lite" -> "gemini-3.5-flash-lite" ->
-  "gemini-3.8-flash" -> "gemini-3.6-flash".
-- generationConfig kini memuat thinkingConfig
-  { thinkingBudget: 0 } — mematikan penalaran berlebih
-  model Flash agar jawaban panduan cepat keluar.
-  Pengaman kompatibilitas: bila suatu percobaan dibalas
-  400 dan pesan error Google mengandung kata "thinking",
-  model yang sama dicoba ulang sekali TANPA
-  thinkingConfig, dan field itu tidak dipakai lagi selama
-  sisa request tersebut. Hasil percobaan ulang mengikuti
-  aturan normal (OK -> {reply}; 404 -> model berikutnya;
-  error lain -> 502 diagnostik).
-- Timeout/fetch gagal kini JATUH ke model berikutnya
-  (dulu langsung FETCH_FAILED): kegagalan terakhir
-  dicatat — jenis fetch/timeout atau 404 beserta
-  status/kode — lalu rantai lanjut. Anggaran total:
-  percobaan baru tidak dimulai bila waktu sejak awal
-  request sudah > 45 detik; rantai berhenti dan membalas
-  502 dengan diagnostik kegagalan TERAKHIR (FETCH_FAILED
-  bila terakhir fetch/timeout; 404 NOT_FOUND bila
-  terakhir 404).
-- Aturan lain TETAP: respons OK -> {reply}; error non-404
-  (selain kasus thinking di atas) -> langsung 502
-  diagnostik pola v9.0.1 (upstream_status +
-  upstream_code), tanpa jatuh ke model lain; payload
-  tidak valid -> 400; kunci belum dipasang -> 503
-  {error:"not_configured"}; timeout per percobaan tetap
-  20 detik; kunci API tidak pernah masuk log/respons;
-  log ringkas per kegagalan tetap menyertakan nama
-  model. UI AsistenChat.tsx tidak berubah.
-- package.json -> versi 1.6.4.
+Dua lapis perbaikan di v9.0.5:
 
-Seluruh isi v9.0.3 & v9 tetap berlaku (rantai model
-Gemini 3.x + diagnostik asisten, tombol chat melayang
-setelah login, basis pengetahuan asisten-pengetahuan.ts
-dari Manual Book v5 + fitur v8) dan seluruh isi v8.2.1
-di bawahnya (multi-akun dua peran, Dashboard Admin,
-Monitoring Dosen, halaman mahasiswa, pengumpulan online,
-tanda tangan laporan, grafik dashboard, perbaikan
-fmtTanggalWaktu).
+1) src/app/api/asisten/route.ts — fungsi pembersih
+   bersihkanMarkdown diterapkan pada string balasan
+   AKHIR sebelum dikembalikan sebagai {reply}:
+   - Pasangan tebal /\*\*([^*]+)\*\*/g -> "$1"
+     (isi dipertahankan, tandanya dibuang).
+   - Sisa "**" yang tak berpasangan -> dibuang.
+   - Bullet di awal baris /^\s*\*\s+/gm -> "• ".
+   - Judul markdown di awal baris /^#{1,6}\s+/gm -> "".
+   - Isi lain TIDAK diubah: satu "*" tunggal di tengah
+     baris (mis. "Harga 2 * 3") tetap utuh.
+   Terverifikasi uji unit Node: contoh
+   "**Kartu Statistik:** penting / * item satu /
+   ## Judul / Harga 2 * 3" menjadi
+   "Kartu Statistik: penting / • item satu / Judul /
+   Harga 2 * 3" persis seperti diharapkan.
+   Pesan error/diagnostik, logika rantai model,
+   validasi, thinkingConfig, dan anggaran waktu TIDAK
+   berubah.
+
+2) src/lib/asisten-pengetahuan.ts — aturan gaya baru
+   (aturan 8) di SYSTEM_PROMPT_ASISTEN: model diminta
+   menulis TEKS POLOS tanpa markdown — tidak memakai
+   ** untuk menebal, tidak memakai # untuk judul;
+   daftar memakai awalan "• " atau penomoran biasa.
+   Ini mengurangi tanda dari sumbernya; pembersih di
+   route adalah jaminan akhirnya.
+
+- package.json / package-lock.json -> versi 1.6.5.
+- Penanda versi di SmartClassApp.tsx (payload Backup
+  JSON + halaman Tentang) -> v2026-10-28-v9.0.5.
+- UI AsistenChat.tsx TIDAK berubah.
+
+Seluruh isi v9.0.4 di bawahnya tetap berlaku (rantai
+model Lite-first + thinkingBudget 0 + jatuh ke model
+berikutnya saat timeout dalam anggaran 45 detik +
+maxDuration 60), begitu pula v9.0.3 (model Gemini 3.x),
+v9 (Asisten AI + diagnostik), dan v8.2.1 (multi-akun dua
+peran, Dashboard Admin, Monitoring Dosen, halaman
+mahasiswa, pengumpulan online, tanda tangan laporan,
+grafik dashboard, perbaikan fmtTanggalWaktu).
 
 Marker self-check: baris pertama file ini persis
-"SMART CLASS ONLINE v2026-10-28-v9.0.4"; teks "Asisten
+"SMART CLASS ONLINE v2026-10-28-v9.0.5"; teks "Asisten
 Smart Class" ada di src/components/AsistenChat.tsx; teks
-"gemini-3.1-flash-lite" ada di
-src/app/api/asisten/route.ts; versi di package.json
-adalah "1.6.4".
+"bersihkanMarkdown" ada di src/app/api/asisten/route.ts;
+versi di package.json adalah "1.6.5".
 
-Urutan deploy (dari v9.0.3 — TANPA langkah migrasi SQL):
+Urutan deploy (dari v9.0.4 — TANPA langkah migrasi SQL):
 1) Ekstrak paket ke folder BARU, upload seluruh isinya ke
    GitHub (timpa file lama).
 2) Env GEMINI_API_KEY di Vercel TIDAK perlu diubah —
@@ -79,26 +70,28 @@ Urutan deploy (dari v9.0.3 — TANPA langkah migrasi SQL):
    dibagikan, jangan masuk GitHub/chat.
 3) Redeploy, tunggu selesai, lalu Ctrl+F5 di aplikasi.
 4) Login -> klik tombol chat -> ajukan pertanyaan;
-   asisten kini dipimpin model Lite yang cepat dan jatuh
-   ke model berikutnya juga saat timeout.
+   jawaban kini tampil sebagai teks polos tanpa tanda
+   ** lagi.
 Panduan deploy lengkap v9 ada di folder smart-class-v9
 (panduan-deploy-v9.md).
 
 Isi paket lengkap:
-- package.json / package-lock.json — manifest versi 1.6.4
+- package.json / package-lock.json — manifest versi 1.6.5
 - next.config.mjs, tsconfig.json, vercel.json, .env.example
   (memuat contoh GEMINI_API_KEY), .gitignore, next-env.d.ts
-- README.md — panduan deploy + langkah pembaruan s.d. v9.0.4
+- README.md — panduan deploy + langkah pembaruan s.d. v9.0.5
 - VERSION.txt — file ini
 - src/app/ — layout, / (pengarah), /login, /dashboard,
   /m/[token] (Halaman Mahasiswa + pengumpulan), globals.css,
-  api/asisten/route.ts (rantai model Lite-first v9.0.4)
+  api/asisten/route.ts (rantai model Lite-first v9.0.4 +
+  pembersih markdown v9.0.5)
 - src/components/ — SmartClassApp.tsx (11 modul dosen + panel
   Bagikan + Dashboard Admin + Monitoring Dosen + Manajemen
   Akun Dosen + AsistenChat terpasang), Setup.tsx,
   AsistenChat.tsx
 - src/lib/ — supabase.ts, types.ts, siakad.ts (export SIAKAD),
-  asisten-pengetahuan.ts (basis pengetahuan asisten)
+  asisten-pengetahuan.ts (basis pengetahuan asisten +
+  aturan teks polos v9.0.5)
 - supabase/schema.sql — skema akhir v8 (instalasi baru)
 - supabase/migrasi-v2-halaman-mahasiswa.sql
 - supabase/migrasi-v5-pengumpulan-online.sql

@@ -161,6 +161,35 @@ ada di `src/components/AsistenChat.tsx`, dan
 
 ---
 
+## 🔄 Pembaruan v2026-10-28-v9.0.5 — Jawaban Asisten Teks Polos (Tanpa Markdown)
+
+Perbaikan mikro asisten — **tanpa migrasi SQL baru**,
+menggantikan paket v9.0.4. Panel chat merender jawaban
+sebagai teks polos, sehingga format tebal markdown dari
+model (`**kata**`) tampil mentah sebagai tanda bintang.
+Dua lapis perbaikan:
+
+- `src/app/api/asisten/route.ts`: fungsi pembersih
+  `bersihkanMarkdown` diterapkan pada balasan akhir —
+  pasangan `**...**` dibuka isinya, sisa `**` yang tak
+  berpasangan dibuang, bullet `*` di awal baris menjadi
+  `•`, dan penanda judul `#` di awal baris dibuang. Isi
+  lain tidak diubah (satu `*` tunggal di tengah baris,
+  misalnya hitungan `2 * 3`, tetap utuh). Logika rantai
+  model, diagnostik, dan validasi tidak berubah.
+- `src/lib/asisten-pengetahuan.ts`: satu aturan gaya
+  baru di prompt sistem — model diminta menulis teks
+  polos tanpa markdown (daftar memakai `• ` atau
+  penomoran biasa), mengurangi tanda dari sumbernya.
+
+Self-check paket: baris pertama `VERSION.txt` adalah
+**`SMART CLASS ONLINE v2026-10-28-v9.0.5`**, versi di
+`package.json` adalah **1.6.5**, teks
+**`Asisten Smart Class`** ada di
+`src/components/AsistenChat.tsx`.
+
+---
+
 ## 🔄 Pembaruan v2026-10-28-v9.0.4 — Keandalan Asisten (Timeout & Model Lite)
 
 Perbaikan mikro route `/api/asisten` — **tanpa migrasi
