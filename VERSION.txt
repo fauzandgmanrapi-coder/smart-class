@@ -1,69 +1,81 @@
-SMART CLASS ONLINE v2026-10-26-v7
+SMART CLASS ONLINE v2026-10-27-v8
 ==================================
 
-Pembaruan dari v2026-10-26-v6: (1) BLOK TANDA TANGAN LAPORAN
-yang bisa diatur — kini ada kolom atasan (Rektor/Ketua Prodi/
-Dekan) sebagai pihak "Mengetahui" di kaki laporan cetak; dan
-(2) DASHBOARD MONITORING dengan diagram batang kehadiran per
-pertemuan + diagram lingkaran (donut) distribusi nilai huruf.
-TIDAK ada migrasi SQL: pengaturan tanda tangan tersimpan
-sebagai kunci biasa di tabel pengaturan yang sudah ada.
+Pembaruan BESAR dari v2026-10-26-v7: MULTI-AKUN DUA PERAN.
+Aplikasi tidak lagi memakai satu dataset bersama untuk semua
+akun login (desain lama menyebabkan profil dosen bisa tertimpa
+saat akun kedua dipakai bersamaan — insiden 27 Okt 2026).
+
+Dua peran akun:
+- DOSEN: setiap akun hanya melihat & mengubah data miliknya
+  sendiri (kolom owner_id di semua tabel + RLS per pemilik).
+  Konsep "dosen aktif" global DIHAPUS; konteks = profil yang
+  tertaut ke akun sendiri. Kelas aktif & tahun aktif per akun.
+- ADMIN (Rektor/Admin kampus): Dashboard Admin berisi agregat
+  lintas dosen (jumlah dosen, kelas aktif, mahasiswa, rata-rata
+  kehadiran, distribusi nilai huruf agregat, ringkasan per dosen)
+  + menu Manajemen Akun Dosen (buat akun, reset password,
+  nonaktifkan/aktifkan, lepas/tautkan profil) lewat Edge Function
+  "create-lecturer-account". Admin HANYA membaca data dosen —
+  tidak bisa menulis tabel kerja dosen.
+
+Yang berubah:
+- supabase/migrasi-v8-multi-akun.sql (BARU, WAJIB dijalankan):
+  owner_id + backfill ke akun nurfauzan79@gmail.com, profiles
+  diperluas (role, dosen_id, aktif), RLS ditulis ulang, unik per
+  pemilik, fungsi publik Halaman Mahasiswa & pengumpulan tugas
+  disesuaikan (tetap berfungsi untuk anon lewat token).
+- supabase/functions/create-lecturer-account/index.ts (BARU):
+  Edge Function pengelolaan akun dosen (service role di server).
+- supabase/schema.sql diselaraskan ke bentuk akhir v8.
+- src/components/SmartClassApp.tsx: pemuatan profil akun + peran,
+  konteks per akun, menu & layar Admin, backup/restore hanya
+  data sendiri (backup lama tetap bisa dipulihkan), versi.
+- src/lib/types.ts: tipe ProfileAkun, AkunDosen, owner_id.
+- src/app/globals.css + section Rekap: PERBAIKAN CETAK — saat
+  mencetak Rekap & Laporan (tombol Cetak maupun Ctrl+P), yang
+  tercetak HANYA dokumen laporan formal. Kartu pemilih laporan,
+  tombol Pratinjau, judul/meta view, tabel pratinjau layar, dan
+  judul modal kini tersembunyi saat print (sebelumnya ikut
+  tercetak menjadi halaman pertama PDF). Blok tanda tangan v7
+  di dokumen formal tidak berubah.
+- package.json -> versi 1.5.0.
+
+Semua fitur v2-v7 tetap bekerja untuk peran dosen: 11 menu,
+Halaman Mahasiswa + QR, pengumpulan tugas online, Export Nilai
+SIAKAD, grafik dashboard, tanda tangan laporan, backup/restore
+JSON, reset semester.
 
 Marker self-check: baris pertama file ini persis
-"SMART CLASS ONLINE v2026-10-26-v7", dan di
-src/components/SmartClassApp.tsx ada teks "Tanda Tangan Laporan",
-"Dokumen ini dicetak dari", dan "Distribusi Nilai Huruf".
+"SMART CLASS ONLINE v2026-10-27-v8"; di
+src/components/SmartClassApp.tsx ada teks "Manajemen Akun Dosen"
+dan "Dashboard Admin Kampus"; di
+supabase/migrasi-v8-multi-akun.sql ada teks "owner select";
+versi di package.json adalah "1.5.0".
 
-Yang baru di v7:
-- Dashboard kini punya dua panel monitoring baru untuk kelas
-  aktif: "Kehadiran per Pertemuan" (diagram batang persentase
-  hadir + terlambat tiap pertemuan yang sudah diabsen) dan
-  "Distribusi Nilai Huruf" (diagram lingkaran kelompok huruf
-  A/B/C/D/E dari nilai akhir mahasiswa yang sudah dinilai,
-  lengkap dengan legenda jumlah + persentase). Keduanya
-  memakai data yang sudah ada — tidak ada input baru.
-- Menu Pengaturan punya bagian "Tanda Tangan Laporan" berisi
-  empat kolom: Jabatan Atasan, Nama Atasan, NIDN Atasan
-  (opsional), dan Kota Tanda Tangan (bawaan: Maros).
-- Kaki laporan cetak (Rekap & Laporan) kini berformat resmi:
-  * Kiri: "Mengetahui," + jabatan atasan + ruang tanda tangan +
-    nama atasan (garis bawah) + NIDN — hanya tampil bila Nama
-    Atasan diisi.
-  * Kanan: "{Kota}, {tanggal}" + "Dosen Pengampu," + ruang
-    tanda tangan + nama dosen pengampu kelas + NIDN-nya.
-  * Blok lama "Dicetak pada / {Nama Aplikasi} Online" turun
-    menjadi catatan kecil di paling bawah dokumen:
-    "Dokumen ini dicetak dari ... Online pada ... • {institusi}".
-
-File yang berubah dari v6:
-- src/components/SmartClassApp.tsx (formulir pengaturan tanda
-  tangan + kaki laporan baru + versi)
-- src/app/globals.css           (gaya .report-foot)
-- package.json, package-lock.json, VERSION.txt, README.md
-
-Paket ini memuat seluruh fitur v2-v6 (Halaman Mahasiswa,
-keterangan absensi, perbaikan Export SIAKAD, ikon kontras,
-Pengumpulan Tugas Online, logo Smart Class + kredit Manrapi
-EduTech). Bila melompat dari versi sebelum v5, jalankan juga
-migrasi supabase/migrasi-v5-pengumpulan-online.sql.
+Urutan deploy (ringkas — lengkapnya di README & panduan):
+1) Export Backup JSON dari aplikasi lama.
+2) Jalankan migrasi-v8-multi-akun.sql di Supabase SQL Editor.
+3) Deploy Edge Function create-lecturer-account.
+4) Upload seluruh isi paket ke GitHub, tunggu Vercel, Ctrl+F5.
+5) (Opsional) tetapkan admin pertama lewat potongan SQL di
+   akhir file migrasi.
+6) Verifikasi dua akun (dosen & admin).
 
 Isi paket lengkap:
-- package.json / package-lock.json — manifest versi 1.4.0
-  (next, react, @supabase/supabase-js, xlsx, jszip, qrcode)
+- package.json / package-lock.json — manifest versi 1.5.0
 - next.config.mjs, tsconfig.json, vercel.json, .env.example, .gitignore
-- README.md — panduan deploy + langkah pembaruan v2 s.d. v7
+- README.md — panduan deploy + langkah pembaruan s.d. v8
 - VERSION.txt — file ini
-- src/app/ — layout, / (pengarah), /login (logo + kredit),
-  /dashboard, /m/[token] (Halaman Mahasiswa + pengumpulan),
-  globals.css
-- src/components/ — SmartClassApp.tsx (11 modul + panel Bagikan +
-  keterangan absensi + pengumpulan online + tanda tangan
-  laporan), Setup.tsx
+- src/app/ — layout, / (pengarah), /login, /dashboard,
+  /m/[token] (Halaman Mahasiswa + pengumpulan), globals.css
+- src/components/ — SmartClassApp.tsx (11 modul dosen + panel
+  Bagikan + Dashboard Admin + Manajemen Akun Dosen), Setup.tsx
 - src/lib/ — supabase.ts, types.ts, siakad.ts (export SIAKAD)
-- supabase/schema.sql — 15 tabel + fungsi halaman_mahasiswa &
-  kumpul_tugas_mahasiswa, RLS, seed
-- supabase/migrasi-v2-halaman-mahasiswa.sql — migrasi v1 -> v2
-- supabase/migrasi-v5-pengumpulan-online.sql — migrasi -> v5
-- public/logo-smartclass.png — logo aplikasi
-- public/logo-manrapi.png — logo Manrapi EduTech
+- supabase/schema.sql — skema akhir v8 (instalasi baru)
+- supabase/migrasi-v2-halaman-mahasiswa.sql
+- supabase/migrasi-v5-pengumpulan-online.sql
+- supabase/migrasi-v8-multi-akun.sql — migrasi v7 -> v8
+- supabase/functions/create-lecturer-account/index.ts
+- public/logo-smartclass.png, public/logo-manrapi.png
 - public/templates-siakad/ — PAI.xlsx, PGMI.xlsx, HKI.xlsx, ESy.xlsx

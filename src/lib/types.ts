@@ -1,5 +1,6 @@
 export interface Dosen {
   id: number;
+  owner_id?: string | null;
   nidn: string | null;
   nama: string;
   email: string | null;
@@ -11,6 +12,7 @@ export interface Dosen {
 
 export interface TahunAkademik {
   id: number;
+  owner_id?: string | null;
   tahun: string;
   semester: string; // Ganjil | Genap | Pendek
   aktif: number;
@@ -18,6 +20,7 @@ export interface TahunAkademik {
 
 export interface MataKuliah {
   id: number;
+  owner_id?: string | null;
   kode: string | null;
   nama: string;
   sks: number | null;
@@ -28,6 +31,7 @@ export interface MataKuliah {
 
 export interface Kelas {
   id: number;
+  owner_id?: string | null;
   kode_kelas: string;
   mata_kuliah_id: number;
   dosen_id: number;
@@ -45,6 +49,7 @@ export interface Kelas {
 
 export interface Mahasiswa {
   id: number;
+  owner_id?: string | null;
   nim: string;
   nama: string;
   jenis_kelamin: string | null;
@@ -58,6 +63,7 @@ export interface Mahasiswa {
 
 export interface AnggotaKelas {
   id: number;
+  owner_id?: string | null;
   kelas_id: number;
   mahasiswa_id: number;
   status: string;
@@ -66,6 +72,7 @@ export interface AnggotaKelas {
 
 export interface Pertemuan {
   id: number;
+  owner_id?: string | null;
   kelas_id: number;
   pertemuan_ke: number;
   tanggal: string;
@@ -81,6 +88,7 @@ export const STATUS_ABSENSI: StatusAbsensi[] = ["Hadir", "Izin", "Sakit", "Alpha
 
 export interface Absensi {
   id: number;
+  owner_id?: string | null;
   pertemuan_id: number;
   mahasiswa_id: number;
   status: StatusAbsensi;
@@ -90,6 +98,7 @@ export interface Absensi {
 
 export interface KomponenNilai {
   id: number;
+  owner_id?: string | null;
   kelas_id: number;
   nama: string;
   bobot: number;
@@ -97,6 +106,7 @@ export interface KomponenNilai {
 
 export interface Nilai {
   id: number;
+  owner_id?: string | null;
   kelas_id: number;
   mahasiswa_id: number;
   komponen_nilai_id: number;
@@ -105,6 +115,7 @@ export interface Nilai {
 
 export interface Materi {
   id: number;
+  owner_id?: string | null;
   kelas_id: number;
   pertemuan_id: number | null;
   judul: string;
@@ -115,6 +126,7 @@ export interface Materi {
 
 export interface Tugas {
   id: number;
+  owner_id?: string | null;
   kelas_id: number;
   judul: string;
   deskripsi: string | null;
@@ -126,6 +138,7 @@ export interface Tugas {
 
 export interface PengumpulanTugas {
   id: number;
+  owner_id?: string | null;
   tugas_id: number;
   mahasiswa_id: number;
   waktu_kumpul: string | null;
@@ -157,4 +170,25 @@ export function nilaiIndeks(letter: string): number | "" {
     "C+": 2, C: 2, "C-": 2, D: 1, E: 0,
   };
   return map[letter] ?? "";
+}
+
+/** Baris tabel penghubung akun (public.profiles) — v8 multi-akun. */
+export interface ProfileAkun {
+  user_id: string;
+  photo: string;
+  role: "dosen" | "admin";
+  dosen_id: number | null;
+  aktif: boolean;
+}
+
+/** Ringkasan akun dari Edge Function create-lecturer-account (aksi list). */
+export interface AkunDosen {
+  user_id: string;
+  email: string;
+  created_at: string | null;
+  role: string;
+  dosen_id: number | null;
+  dosen_nama: string | null;
+  aktif: boolean;
+  banned: boolean;
 }

@@ -360,9 +360,8 @@ table.report-table td.c, table.report-table th.c { text-align: center; }
   .module { border: none; box-shadow: none; padding: 0; background: transparent; }
   .report-doc {
     border: none; box-shadow: none; border-radius: 0; margin: 0; max-width: none;
-    padding: 0; page-break-after: always;
+    padding: 0; page-break-after: auto;
   }
-  .report-doc:last-child { page-break-after: auto; }
 }
 
 @media (max-width: 960px) {
@@ -399,6 +398,11 @@ table.report-table td.c, table.report-table th.c { text-align: center; }
 @media print {
   .modal-backdrop { position: static !important; background: #fff !important; padding: 0 !important; display: block !important; }
   .modal { box-shadow: none !important; max-width: none !important; max-height: none !important; overflow: visible !important; padding: 0 !important; }
+  /* v8: judul modal ("Pratinjau Laporan — ...") adalah UI layar,
+     bukan bagian dokumen formal — jangan ikut tercetak. Seluruh
+     UI view Rekap & Laporan juga sudah berkelas no-print, sehingga
+     yang tercetak hanya .report-doc (dokumen formal) saja. */
+  .modal > h3 { display: none !important; }
 }
 
 /* ---------- Halaman Mahasiswa (publik, /m/<token>) ---------- */

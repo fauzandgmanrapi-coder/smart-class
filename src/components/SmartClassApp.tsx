@@ -6,6 +6,7 @@ import {
   STATUS_ABSENSI,
   nilaiHuruf,
   type Absensi,
+  type AkunDosen,
   type AnggotaKelas,
   type Dosen,
   type Kelas,
@@ -16,6 +17,7 @@ import {
   type Nilai,
   type PengumpulanTugas,
   type Pertemuan,
+  type ProfileAkun,
   type StatusAbsensi,
   type TahunAkademik,
   type Tugas,
@@ -26,7 +28,8 @@ import { SetupScreen, useRequireSession, useSessionUser } from "@/components/Set
 
 type View =
   | "dashboard" | "dosen" | "matakuliah" | "kelas" | "mahasiswa"
-  | "pertemuan" | "penilaian" | "materi" | "rekap" | "pengaturan" | "tentang";
+  | "pertemuan" | "penilaian" | "materi" | "rekap" | "pengaturan" | "tentang"
+  | "admin-dashboard" | "admin-akun";
 
 const VIEW_TITLES: Record<View, string> = {
   dashboard: "Dashboard",
@@ -40,6 +43,8 @@ const VIEW_TITLES: Record<View, string> = {
   rekap: "Rekap & Laporan",
   pengaturan: "Pengaturan",
   tentang: "Tentang",
+  "admin-dashboard": "Dashboard Admin",
+  "admin-akun": "Manajemen Akun Dosen",
 };
 
 const NAV: { view: View; icon: string; label: string }[] = [
@@ -53,6 +58,12 @@ const NAV: { view: View; icon: string; label: string }[] = [
   { view: "materi", icon: "📁", label: "Materi & Tugas" },
   { view: "rekap", icon: "🖨️", label: "Rekap & Laporan" },
   { view: "pengaturan", icon: "⚙️", label: "Pengaturan" },
+  { view: "tentang", icon: "ℹ️", label: "Tentang" },
+];
+
+const NAV_ADMIN: { view: View; icon: string; label: string }[] = [
+  { view: "admin-dashboard", icon: "🏛️", label: "Dashboard Admin" },
+  { view: "admin-akun", icon: "👥", label: "Manajemen Akun Dosen" },
   { view: "tentang", icon: "ℹ️", label: "Tentang" },
 ];
 
@@ -394,6 +405,112 @@ function ShareKelasModal(props: {
   );
 }
 
+
+/* ================= Manajemen Akun Dosen (Admin, v8) ================= */
+
+function AccountActionModal(props: {
+  mode: "create" | "create-baru" | "reset" | "link";
+  userId?: string;
+  dosenId?: number;
+  dosenNama?: string;
+  initialEmail?: string;
+  dosenList: Dosen[];
+  linkedDosenIds: Set<number>;
+  onClose: () => void;
+  onSubmit: (body: Record<string, unknown>) => Promise<boolean>;
+}) {
+  const [nama, setNama] = useState("");
+  const [email, setEmail] = useState(props.initialEmail ?? "");
+  const [nidn, setNidn] = useState("");
+  const [prodi, setProdi] = useState("");
+  const [password, setPassword] = useState("");
+  const [dosenId, setDosenId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const titles: Record<string, string> = {
+    create: "Buat Akun Login Dosen",
+    "create-baru": "Buat Profil + Akun Dosen Baru",
+    reset: "Reset Password Akun",
+    link: "Tautkan Akun ke Profil Dosen",
+  };
+
+  async function submit() {
+    setErr("");
+    let body: Record<string, unknown> | null = null;
+    if (props.mode === "create") {
+      if (!email.trim()) { setErr("Email wajib diisi."); return; }
+      if (password.length < 8) { setErr("Password minimal 8 karakter."); return; }
+      body = { action: "create", dosen_id: props.dosenId, email: email.trim(), password };
+    } else if (props.mode === "create-baru") {
+      if (!nama.trim()) { setErr("Nama dosen wajib diisi."); return; }
+      if (!email.trim()) { setErr("Email wajib diisi."); return; }
+      if (password.length < 8) { setErr("Password minimal 8 karakter."); return; }
+      body = { action: "create", nama: nama.trim(), email: email.trim(), nidn: nidn.trim(), prodi, password };
+    } else if (props.mode === "reset") {
+      if (password.length < 8) { setErr("Password minimal 8 karakter."); return; }
+      body = { action: "reset", user_id: props.userId, password };
+    } else {
+      if (!dosenId) { setErr("Pilih profil dosen dulu."); return; }
+      body = { action: "link", user_id: props.userId, dosen_id: Number(dosenId) };
+    }
+    setBusy(true);
+    const ok = await props.onSubmit(body);
+    setBusy(false);
+    if (ok) props.onClose();
+  }
+
+  const bebas = props.dosenList.filter((d) => !props.linkedDosenIds.has(d.id));
+
+  return (
+    <Modal title={titles[props.mode]} onClose={props.onClose}>
+      {err && <div className="alert-error">{err}</div>}
+      {props.mode === "create" && (
+        <>
+          <p className="muted" style={{ marginTop: 0 }}>Akun login untuk profil dosen <strong>{props.dosenNama ?? "-"}</strong>. Dosen masuk dengan email + password ini dan hanya melihat datanya sendiri.</p>
+          <div className="form-grid">
+            <label>Email Login<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+            <label>Password Awal<input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimal 8 karakter" /></label>
+          </div>
+        </>
+      )}
+      {props.mode === "create-baru" && (
+        <div className="form-grid">
+          <label>Nama Dosen<input value={nama} onChange={(e) => setNama(e.target.value)} placeholder="Nama lengkap + gelar" /></label>
+          <label>Email Login<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+          <label>NIDN<input value={nidn} onChange={(e) => setNidn(e.target.value)} /></label>
+          <label>Program Studi
+            <select value={prodi} onChange={(e) => setProdi(e.target.value)}>
+              <option value="">— Pilih —</option>
+              {PRODI_OPTIONS.map((x) => <option key={x} value={x}>{x}</option>)}
+            </select>
+          </label>
+          <label>Password Awal<input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimal 8 karakter" /></label>
+        </div>
+      )}
+      {props.mode === "reset" && (
+        <div className="form-grid">
+          <label>Password Baru<input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimal 8 karakter" /></label>
+        </div>
+      )}
+      {props.mode === "link" && (
+        <div className="form-grid">
+          <label>Profil Dosen (belum tertaut)
+            <select value={dosenId} onChange={(e) => setDosenId(e.target.value)}>
+              <option value="">— Pilih —</option>
+              {bebas.map((d) => <option key={d.id} value={d.id}>{d.nama}{d.nidn ? ` — ${d.nidn}` : ""}</option>)}
+            </select>
+          </label>
+          {bebas.length === 0 && <p className="muted">Semua profil dosen sudah tertaut ke akun.</p>}
+        </div>
+      )}
+      <div className="modal-actions">
+        <button className="btn" onClick={props.onClose} disabled={busy}>Batal</button>
+        <button className="btn btn-primary" onClick={() => void submit()} disabled={busy}>{busy ? "Memproses…" : "Simpan"}</button>
+      </div>
+    </Modal>
+  );
+}
+
 interface EditorState { table: string; title: string; fields: FieldDef[]; initial: Record<string, string>; id?: number; numericKeys: string[]; nullableKeys: string[]; fixed?: Record<string, unknown>; }
 
 export default function SmartClassApp() {
@@ -420,6 +537,16 @@ export default function SmartClassApp() {
   const [pengumpulanList, setPengumpulanList] = useState<PengumpulanTugas[]>([]);
 
   const [myPhoto, setMyPhoto] = useState("");
+  const [myProfile, setMyProfile] = useState<ProfileAkun | null>(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [accounts, setAccounts] = useState<AkunDosen[]>([]);
+  const [accountModal, setAccountModal] = useState<null | {
+    mode: "create" | "create-baru" | "reset" | "link";
+    userId?: string;
+    dosenId?: number;
+    initialEmail?: string;
+  }>(null);
+  const isAdmin = myProfile?.role === "admin";
   const [photoOpen, setPhotoOpen] = useState(false);
   const [activeKelasId, setActiveKelasId] = useState<number | null>(null);
   const [editor, setEditor] = useState<EditorState | null>(null);
@@ -481,15 +608,101 @@ export default function SmartClassApp() {
     setLoading(false);
   }
 
-  useEffect(() => { if (sessionState === "ready") void loadAll(); }, [sessionState]);
+  /* ---------- Mode Admin: muat agregat lintas dosen ---------- */
+  async function loadAdmin() {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const [ds, ta, mk, kl, mh, ag, pt, ab, kn, nl] = await Promise.all([
+      supabase.from("dosen").select("*").order("nama"),
+      supabase.from("tahun_akademik").select("*").order("tahun", { ascending: false }),
+      supabase.from("mata_kuliah").select("*").order("nama"),
+      supabase.from("kelas").select("*").order("kode_kelas"),
+      supabase.from("mahasiswa").select("*").order("nama"),
+      supabase.from("anggota_kelas").select("*"),
+      supabase.from("pertemuan").select("*"),
+      supabase.from("absensi").select("*"),
+      supabase.from("komponen_nilai").select("*"),
+      supabase.from("nilai").select("*"),
+    ]);
+    if (ds.data) setDosenList(ds.data as Dosen[]);
+    if (ta.data) setTaList(ta.data as TahunAkademik[]);
+    if (mk.data) setMkList(mk.data as MataKuliah[]);
+    if (kl.data) setKelasList(kl.data as Kelas[]);
+    if (mh.data) setMhsList(mh.data as Mahasiswa[]);
+    if (ag.data) setAnggotaList(ag.data as AnggotaKelas[]);
+    if (pt.data) setPertemuanList(pt.data as Pertemuan[]);
+    if (ab.data) setAbsensiList(ab.data as Absensi[]);
+    if (kn.data) setKomponenList(kn.data as unknown as KomponenNilai[]);
+    if (nl.data) setNilaiList(nl.data as unknown as Nilai[]);
+    setLoading(false);
+    await refreshAccounts();
+  }
+
+  async function refreshAccounts() {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const { data, error } = await supabase.functions.invoke("create-lecturer-account", { body: { action: "list" } });
+    if (!error && data && Array.isArray((data as { accounts?: unknown }).accounts)) {
+      setAccounts((data as { accounts: AkunDosen[] }).accounts);
+    }
+  }
+
+  async function accountAction(body: Record<string, unknown>, okMsg: string): Promise<boolean> {
+    const supabase = getSupabase();
+    if (!supabase) return false;
+    const { data, error } = await supabase.functions.invoke("create-lecturer-account", { body });
+    const errMsg = (data as { error?: string } | null)?.error ?? (error ? error.message : "");
+    if (error || errMsg) {
+      showToast(`Gagal: ${errMsg || "Edge Function tidak merespons."}`);
+      return false;
+    }
+    showToast(okMsg);
+    await loadAdmin();
+    return true;
+  }
+
+  useEffect(() => {
+    if (sessionState !== "ready" || !profileLoaded) return;
+    if (isAdmin) {
+      setView((v) => (v === "dashboard" ? "admin-dashboard" : v));
+      void loadAdmin();
+    } else {
+      void loadAll();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionState, profileLoaded, isAdmin]);
 
   useEffect(() => {
     if (!sessionUser) return;
     const supabase = getSupabase();
     if (!supabase) return;
     let active = true;
-    supabase.from("profiles").select("photo").eq("user_id", sessionUser.id).maybeSingle()
-      .then(({ data }) => { if (active && data) setMyPhoto((data as { photo: string }).photo ?? ""); });
+    void (async () => {
+      const { data } = await supabase.from("profiles").select("*").eq("user_id", sessionUser.id).maybeSingle();
+      if (!active) return;
+      if (data) {
+        const prof = data as ProfileAkun;
+        setMyProfile(prof);
+        setMyPhoto(prof.photo ?? "");
+      } else {
+        // Akun yang belum punya baris penghubung (akun lama / dibuat
+        // langsung di Supabase): buat sebagai dosen. Peran admin hanya
+        // ditetapkan lewat SQL migrasi atau Edge Function.
+        const { data: created } = await supabase.from("profiles")
+          .insert({ user_id: sessionUser.id, role: "dosen" })
+          .select("*")
+          .maybeSingle();
+        if (!active) return;
+        if (created) {
+          const prof = created as ProfileAkun;
+          setMyProfile(prof);
+          setMyPhoto(prof.photo ?? "");
+        } else {
+          setMyProfile({ user_id: sessionUser.id, photo: "", role: "dosen", dosen_id: null, aktif: true });
+        }
+      }
+      if (active) setProfileLoaded(true);
+    })();
     return () => { active = false; };
   }, [sessionUser]);
 
@@ -505,6 +718,19 @@ export default function SmartClassApp() {
     }
   }, [kelasList, activeKelasId]);
 
+  // Tautkan otomatis profil dosen pertama ke akun ini (sekali saja),
+  // agar konteks dosen = profil milik sendiri tanpa "dosen aktif" global.
+  useEffect(() => {
+    if (!sessionUser || !myProfile || isAdmin || myProfile.dosen_id) return;
+    if (!dosenList.length) return;
+    const mine = dosenList.find((d) => (d.email ?? "").toLowerCase() === sessionUser.email.toLowerCase()) ?? dosenList[0];
+    if (!mine) return;
+    const supabase = getSupabase();
+    if (!supabase) return;
+    void supabase.from("profiles").update({ dosen_id: mine.id }).eq("user_id", sessionUser.id)
+      .then(({ error }) => { if (!error) setMyProfile((p) => (p ? { ...p, dosen_id: mine.id } : p)); });
+  }, [sessionUser, myProfile, isAdmin, dosenList]);
+
   function pilihKelasAktif(id: number | null) {
     setActiveKelasId(id);
     if (id) localStorage.setItem("smart-class-kelas-aktif", String(id));
@@ -518,8 +744,10 @@ export default function SmartClassApp() {
   const dosenById = useMemo(() => new Map(dosenList.map((d) => [d.id, d])), [dosenList]);
   const taById = useMemo(() => new Map(taList.map((t) => [t.id, t])), [taList]);
   const activeKelas = kelasList.find((k) => k.id === activeKelasId) ?? null;
-  const activeTA = taList.find((t) => t.aktif === 1) ?? taList.find((t) => String(t.id) === settings.tahun_akademik_aktif_id) ?? null;
-  const activeDosen = dosenList.find((d) => String(d.id) === settings.dosen_aktif_id) ?? dosenList[0] ?? null;
+  const activeTA = taList.find((t) => String(t.id) === settings.tahun_akademik_aktif_id) ?? taList.find((t) => t.aktif === 1) ?? null;
+  // v8: tidak ada lagi "dosen aktif" global — konteks dosen adalah
+  // profil yang tertaut ke akun login sendiri (profiles.dosen_id).
+  const activeDosen = (myProfile?.dosen_id ? dosenList.find((d) => d.id === myProfile.dosen_id) : undefined) ?? dosenList[0] ?? null;
   const anggotaAktif = useMemo(
     () => anggotaList.filter((a) => a.kelas_id === activeKelasId && a.status === "Aktif")
       .sort((a, b) => (a.nomor_absen ?? 999) - (b.nomor_absen ?? 999) || (mhsById.get(a.mahasiswa_id)?.nama ?? "").localeCompare(mhsById.get(b.mahasiswa_id)?.nama ?? "")),
@@ -581,7 +809,9 @@ export default function SmartClassApp() {
   async function saveSetting(kunci: string, nilai: string) {
     const supabase = getSupabase();
     if (!supabase) return;
-    const { error } = await supabase.from("pengaturan").upsert({ kunci, nilai }, { onConflict: "kunci" });
+    const uid = sessionUser?.id;
+    if (!uid) throw new Error("Sesi login tidak ditemukan.");
+    const { error } = await supabase.from("pengaturan").upsert({ owner_id: uid, kunci, nilai }, { onConflict: "owner_id,kunci" });
     if (error) throw new Error(error.message);
     setSettings((p) => ({ ...p, [kunci]: nilai }));
   }
@@ -592,13 +822,13 @@ export default function SmartClassApp() {
   }
 
   if (sessionState === "setup") return <SetupScreen />;
-  if (sessionState === "loading" || loading) {
+  if (sessionState === "loading" || !profileLoaded || loading) {
     return <main className="setup-wrap"><p className="muted">Memuat Smart Class Online…</p></main>;
   }
 
   const appName = settings.nama_aplikasi || "Smart Class";
   const institusi = settings.institusi || "IAI DDI Maros";
-  const userName = activeDosen?.nama || sessionUser?.email || "Dosen";
+  const userName = isAdmin ? (sessionUser?.email || "Admin") : activeDosen?.nama || sessionUser?.email || "Dosen";
 
   return (
     <div className="shell">
@@ -619,24 +849,24 @@ export default function SmartClassApp() {
           </button>
           <p className="avatar-hint">Klik foto untuk mengganti</p>
           <h3>{userName}</h3>
-          <p>{activeDosen?.prodi || "Dosen"} {activeDosen?.fakultas ? `• ${activeDosen.fakultas}` : ""}</p>
+          <p>{isAdmin ? "Rektor / Admin Kampus" : <>{activeDosen?.prodi || "Dosen"} {activeDosen?.fakultas ? `• ${activeDosen.fakultas}` : ""}</>}</p>
           <p className="online-dot">● Online</p>
-          <span className="role-chip admin">Dosen</span>
+          <span className="role-chip admin">{isAdmin ? "Admin" : "Dosen"}</span>
         </div>
         <p className="nav-label">Menu Utama</p>
         <nav className="nav">
-          {NAV.map((n) => (
+          {(isAdmin ? NAV_ADMIN : NAV).map((n) => (
             <button key={n.view} className={view === n.view ? "active" : ""} onClick={() => setView(n.view)}>
               <span className="ico">{n.icon}</span> {n.label}
             </button>
           ))}
         </nav>
-        <div className="journal-card">
+        {!isAdmin && (<div className="journal-card">
           <div className="crown">🎓</div>
           <h4>{activeTA ? `${activeTA.tahun} • ${activeTA.semester}` : "Tahun Akademik"}</h4>
           <p>{activeTA ? "Tahun akademik aktif saat ini." : "Belum ada tahun akademik aktif. Atur di menu Pengaturan."}</p>
           <button className="btn btn-gold btn-small" onClick={() => setView("pengaturan")}>Atur Tahun Akademik</button>
-        </div>
+        </div>)}
       </aside>
 
       <main className="main">
@@ -647,7 +877,7 @@ export default function SmartClassApp() {
           <button className="btn-logout" onClick={() => void logout()}>⏻ Keluar</button>
         </div>
 
-        <div className="context-bar no-print">
+        {!isAdmin && (<div className="context-bar no-print">
           <div>
             <label>Kelas Aktif
               <select value={activeKelasId ?? ""} onChange={(e) => pilihKelasAktif(e.target.value ? Number(e.target.value) : null)}>
@@ -665,7 +895,204 @@ export default function SmartClassApp() {
               {activeKelas ? <>{anggotaAktif.length} peserta • {pertemuanAktif.length} pertemuan • {mkById.get(activeKelas.mata_kuliah_id)?.sks ?? "-"} SKS</> : "Buat kelas dulu di menu Kelas, lalu pilih di sini."}
             </span>
           </div>
-        </div>
+        </div>)}
+
+        {view === "admin-dashboard" && isAdmin && (() => {
+          const totalAbsensi = absensiList.length;
+          const hadirEfektif = absensiList.filter((a) => a.status === "Hadir" || a.status === "Terlambat").length;
+          const rataKehadiran = totalAbsensi ? Math.round((hadirEfektif / totalAbsensi) * 1000) / 10 : 0;
+          const kelasAktifCount = kelasList.filter((k) => k.status === "Aktif").length;
+          const hurufGroups = [
+            { label: "A", color: "#0284c7" },
+            { label: "B", color: "#38bdf8" },
+            { label: "C", color: "#e9b949" },
+            { label: "D", color: "#d97706" },
+            { label: "E", color: "#dc2626" },
+          ];
+          const hurufCount: Record<string, number> = { A: 0, B: 0, C: 0, D: 0, E: 0 };
+          let dinilaiTotal = 0;
+          for (const k of kelasList) {
+            const komps = komponenList.filter((x) => x.kelas_id === k.id);
+            const bobot = komps.reduce((sm, x) => sm + Number(x.bobot || 0), 0);
+            if (Math.abs(bobot - 100) >= 0.01) continue;
+            for (const a of anggotaList.filter((x) => x.kelas_id === k.id && x.status === "Aktif")) {
+              if (!nilaiList.some((n) => n.kelas_id === k.id && n.mahasiswa_id === a.mahasiswa_id)) continue;
+              let total = 0;
+              for (const kp of komps) {
+                const n = nilaiList.find((x) => x.kelas_id === k.id && x.mahasiswa_id === a.mahasiswa_id && x.komponen_nilai_id === kp.id);
+                if (n) total += Number(n.nilai_angka) * Number(kp.bobot || 0) / 100;
+              }
+              const huruf = nilaiHuruf(total);
+              const g = ["A", "A-"].includes(huruf) ? "A" : ["B+", "B", "B-"].includes(huruf) ? "B" : ["C+", "C", "C-"].includes(huruf) ? "C" : huruf;
+              hurufCount[g] = (hurufCount[g] ?? 0) + 1;
+              dinilaiTotal++;
+            }
+          }
+          return (
+            <>
+              <div className="hero no-print">
+                <span className="pill">{institusi}</span>
+                <h2>Dashboard Admin Kampus 👋</h2>
+                <p>
+                  Pantau seluruh dosen dalam satu pandangan: jumlah dosen, kelas, mahasiswa,
+                  kehadiran, dan distribusi nilai agregat. Sebagai Admin Anda <strong>hanya memantau</strong> —
+                  data kerja dosen tidak dapat diubah dari akun ini.
+                </p>
+                <div className="actions">
+                  <button className="btn btn-primary" onClick={() => setView("admin-akun")}>Kelola Akun Dosen</button>
+                </div>
+              </div>
+              <div className="kpis">
+                <div className="kpi tone-1"><div className="k-ico">👨‍🏫</div><div className="k-label">Dosen Terdaftar</div><div className="k-value">{dosenList.length}</div><div className="k-sub">{accounts.filter((a) => a.role === "dosen").length} akun login dosen</div></div>
+                <div className="kpi tone-2"><div className="k-ico">🗂️</div><div className="k-label">Kelas</div><div className="k-value">{kelasList.length}</div><div className="k-sub">{kelasAktifCount} kelas berstatus Aktif</div></div>
+                <div className="kpi tone-3"><div className="k-ico">🎓</div><div className="k-label">Mahasiswa</div><div className="k-value">{mhsList.length}</div><div className="k-sub">Total data mahasiswa semua dosen</div></div>
+                <div className="kpi tone-4"><div className="k-ico">🗓️</div><div className="k-label">Rata-rata Kehadiran</div><div className="k-value">{totalAbsensi ? `${rataKehadiran}%` : "-"}</div><div className="k-sub">{totalAbsensi} catatan absensi • {pertemuanList.length} pertemuan</div></div>
+              </div>
+              <div className="grid-2">
+                <div className="panel">
+                  <h3>Distribusi Nilai Huruf (Agregat)</h3>
+                  <p className="sub">Nilai akhir semua kelas yang bobot komponennya 100% dan sudah dinilai</p>
+                  {dinilaiTotal === 0 && <p className="empty">Belum ada nilai akhir yang bisa diagregat.</p>}
+                  {dinilaiTotal > 0 && hurufGroups.map((g) => (
+                    <div key={g.label} className="legend-row">
+                      <span className="dot" style={{ background: g.color }} />
+                      <span>Nilai {g.label}</span>
+                      <span className="val">{hurufCount[g.label] ?? 0} ({Math.round(((hurufCount[g.label] ?? 0) / dinilaiTotal) * 100)}%)</span>
+                    </div>
+                  ))}
+                  {dinilaiTotal > 0 && (
+                    <div className="legend-row"><span>Total dinilai</span><span className="val">{dinilaiTotal} mahasiswa</span></div>
+                  )}
+                </div>
+                <div className="panel">
+                  <h3>Akun &amp; Akses</h3>
+                  <p className="sub">Ringkasan akun login terdaftar</p>
+                  <div className="legend-row"><span>Total akun login</span><span className="val">{accounts.length}</span></div>
+                  <div className="legend-row"><span>Akun admin</span><span className="val">{accounts.filter((a) => a.role === "admin").length}</span></div>
+                  <div className="legend-row"><span>Akun dosen tertaut profil</span><span className="val">{accounts.filter((a) => a.dosen_id).length}</span></div>
+                  <div className="legend-row"><span>Akun nonaktif / diblokir</span><span className="val">{accounts.filter((a) => !a.aktif).length}</span></div>
+                  <div className="legend-row"><span>Profil dosen belum punya akun</span><span className="val">{dosenList.filter((d) => !accounts.some((a) => a.dosen_id === d.id)).length}</span></div>
+                </div>
+              </div>
+              <div className="panel" style={{ marginTop: 20 }}>
+                <h3>Ringkasan per Dosen</h3>
+                <p className="sub">Hanya-baca — detail dikelola dosen yang bersangkutan dari akunnya sendiri</p>
+                <table>
+                  <thead><tr><th>Dosen</th><th>Prodi</th><th>Kelas</th><th>Mahasiswa Unik</th><th>Pertemuan</th><th>% Kehadiran</th><th>Akun</th></tr></thead>
+                  <tbody>
+                    {dosenList.map((d) => {
+                      const kIds = kelasList.filter((k) => k.dosen_id === d.id).map((k) => k.id);
+                      const mhsUnik = new Set(anggotaList.filter((a) => kIds.includes(a.kelas_id)).map((a) => a.mahasiswa_id)).size;
+                      const pIds = pertemuanList.filter((x) => kIds.includes(x.kelas_id)).map((x) => x.id);
+                      const abs = absensiList.filter((a) => pIds.includes(a.pertemuan_id));
+                      const pct = abs.length ? Math.round((abs.filter((a) => a.status === "Hadir" || a.status === "Terlambat").length / abs.length) * 1000) / 10 : null;
+                      const akun = accounts.find((a) => a.dosen_id === d.id);
+                      return (
+                        <tr key={d.id}>
+                          <td><strong>{d.nama}</strong>{d.nidn ? <><br /><span className="muted" style={{ fontSize: 12 }}>NIDN {d.nidn}</span></> : null}</td>
+                          <td>{d.prodi || "-"}</td>
+                          <td>{kIds.length}</td>
+                          <td>{mhsUnik}</td>
+                          <td>{pIds.length}</td>
+                          <td>{pct === null ? "-" : `${pct}%`}</td>
+                          <td>{akun ? <span className={`chip ${akun.aktif ? "ok" : "warn"}`}>{akun.aktif ? "Aktif" : "Nonaktif"}</span> : <span className="chip">Belum ada akun</span>}</td>
+                        </tr>
+                      );
+                    })}
+                    {dosenList.length === 0 && <tr><td colSpan={7} className="empty">Belum ada profil dosen. Buat dari menu Manajemen Akun Dosen.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          );
+        })()}
+
+        {view === "admin-akun" && isAdmin && (
+          <section className="module">
+            <div className="module-head">
+              <h2>Manajemen Akun Dosen</h2><span className="spacer" />
+              <button className="btn" onClick={() => void refreshAccounts()}>↻ Muat Ulang Akun</button>
+              <button className="btn btn-primary" onClick={() => setAccountModal({ mode: "create-baru" })}>+ Profil + Akun Dosen Baru</button>
+            </div>
+            <p className="muted" style={{ marginTop: 0 }}>
+              Setiap dosen masuk dengan akunnya sendiri dan hanya melihat datanya sendiri.
+              Pembuatan akun, reset password, dan penonaktifan berjalan lewat Edge Function
+              <strong> create-lecturer-account</strong> (service role tetap di server Supabase).
+              {accounts.length === 0 && <> Bila daftar akun kosong, pastikan Edge Function sudah di-deploy mengikuti panduan v8.</>}
+            </p>
+            <h3 style={{ margin: "18px 0 8px" }}>Profil Dosen &amp; Akunnya</h3>
+            <table>
+              <thead><tr><th>Dosen</th><th>Email Profil</th><th>Akun Login</th><th>Status</th><th>Aksi</th></tr></thead>
+              <tbody>
+                {dosenList.map((d) => {
+                  const akun = accounts.find((a) => a.dosen_id === d.id);
+                  return (
+                    <tr key={d.id}>
+                      <td><strong>{d.nama}</strong>{d.nidn ? <><br /><span className="muted" style={{ fontSize: 12 }}>NIDN {d.nidn}</span></> : null}</td>
+                      <td>{d.email || "-"}</td>
+                      <td>{akun ? akun.email : <span className="muted">—</span>}</td>
+                      <td>{akun ? <span className={`chip ${akun.aktif ? "ok" : "warn"}`}>{akun.aktif ? "Aktif" : "Nonaktif"}</span> : <span className="chip">Belum ada akun</span>}</td>
+                      <td><div className="row-actions">
+                        {!akun && (
+                          <button className="btn btn-small btn-primary" onClick={() => setAccountModal({ mode: "create", dosenId: d.id, initialEmail: d.email ?? "" })}>Buat Akun</button>
+                        )}
+                        {akun && (
+                          <>
+                            <button className="btn btn-small" onClick={() => setAccountModal({ mode: "reset", userId: akun.user_id })}>Reset Password</button>
+                            <button className="btn btn-small" onClick={() => {
+                              if (window.confirm(`${akun.aktif ? "Nonaktifkan" : "Aktifkan lagi"} akun ${akun.email}?`)) {
+                                void accountAction({ action: "set_active", user_id: akun.user_id, aktif: !akun.aktif }, akun.aktif ? "Akun dinonaktifkan." : "Akun diaktifkan lagi.");
+                              }
+                            }}>{akun.aktif ? "Nonaktifkan" : "Aktifkan"}</button>
+                            <button className="btn btn-small btn-danger" onClick={() => {
+                              if (window.confirm(`Lepas tautan akun ${akun.email} dari profil ${d.nama}? Akun tetap ada, profil tidak lagi tertaut.`)) {
+                                void accountAction({ action: "unlink", user_id: akun.user_id }, "Tautan akun dilepas.");
+                              }
+                            }}>Lepas Tautan</button>
+                          </>
+                        )}
+                      </div></td>
+                    </tr>
+                  );
+                })}
+                {dosenList.length === 0 && <tr><td colSpan={5} className="empty">Belum ada profil dosen.</td></tr>}
+              </tbody>
+            </table>
+
+            <h3 style={{ margin: "26px 0 8px" }}>Semua Akun Login</h3>
+            <table>
+              <thead><tr><th>Email</th><th>Peran</th><th>Tertaut ke</th><th>Status</th><th>Aksi</th></tr></thead>
+              <tbody>
+                {accounts.map((a) => (
+                  <tr key={a.user_id}>
+                    <td><strong>{a.email || "(tanpa email)"}</strong></td>
+                    <td><span className="chip">{a.role === "admin" ? "Admin" : "Dosen"}</span></td>
+                    <td>{a.dosen_nama || <span className="muted">—</span>}</td>
+                    <td><span className={`chip ${a.aktif ? "ok" : "warn"}`}>{a.aktif ? "Aktif" : "Nonaktif"}</span></td>
+                    <td><div className="row-actions">
+                      {!a.dosen_id && a.role !== "admin" && (
+                        <button className="btn btn-small" onClick={() => setAccountModal({ mode: "link", userId: a.user_id })}>Tautkan</button>
+                      )}
+                      <button className="btn btn-small" onClick={() => {
+                        const baru = a.role === "admin" ? "dosen" : "admin";
+                        if (window.confirm(`Ubah peran ${a.email} menjadi ${baru === "admin" ? "Admin" : "Dosen"}?`)) {
+                          void accountAction({ action: "set_role", user_id: a.user_id, role: baru }, "Peran akun diperbarui.");
+                        }
+                      }}>{a.role === "admin" ? "Jadikan Dosen" : "Jadikan Admin"}</button>
+                      <button className="btn btn-small" onClick={() => setAccountModal({ mode: "reset", userId: a.user_id })}>Reset Password</button>
+                      <button className="btn btn-small" onClick={() => {
+                        if (window.confirm(`${a.aktif ? "Nonaktifkan" : "Aktifkan lagi"} akun ${a.email}?`)) {
+                          void accountAction({ action: "set_active", user_id: a.user_id, aktif: !a.aktif }, a.aktif ? "Akun dinonaktifkan." : "Akun diaktifkan lagi.");
+                        }
+                      }}>{a.aktif ? "Nonaktifkan" : "Aktifkan"}</button>
+                    </div></td>
+                  </tr>
+                ))}
+                {accounts.length === 0 && <tr><td colSpan={5} className="empty">Daftar akun belum termuat. Pastikan Edge Function create-lecturer-account sudah di-deploy, lalu klik Muat Ulang Akun.</td></tr>}
+              </tbody>
+            </table>
+          </section>
+        )}
 
         {view === "dashboard" && (
           <>
@@ -817,7 +1244,7 @@ export default function SmartClassApp() {
                 initial: { nidn: "", nama: "", email: "", no_hp: "", prodi: "", fakultas: "", foto: "" },
               })}>+ Tambah Dosen</button>
             </div>
-            <p className="muted" style={{ marginTop: 0 }}>Satu profil dosen aktif dipakai sebagai konteks aplikasi. Klik <strong>Jadikan Aktif</strong> untuk memilihnya.</p>
+            <p className="muted" style={{ marginTop: 0 }}>Profil dosen ini tertaut ke akun login Anda dan menjadi konteks aplikasi. Sejak v8 setiap akun memiliki data dan konteksnya sendiri — tidak ada lagi &quot;dosen aktif&quot; global yang bisa tertimpa akun lain.</p>
             <div className="cards-grid">
               {dosenList.map((d) => (
                 <div key={d.id} className="class-card">
@@ -831,11 +1258,10 @@ export default function SmartClassApp() {
                   <p>NIDN: {d.nidn || "-"}</p>
                   <p>{d.prodi || "-"} {d.fakultas ? `• ${d.fakultas}` : ""}</p>
                   <p>{d.email || "-"} • {d.no_hp || "-"}</p>
-                  {String(d.id) === settings.dosen_aktif_id || (dosenList[0]?.id === d.id && !settings.dosen_aktif_id)
-                    ? <span className="chip ok">● Dosen Aktif</span>
-                    : <span className="chip">Nonaktif</span>}
+                  {activeDosen?.id === d.id
+                    ? <span className="chip ok">● Profil Anda</span>
+                    : <span className="chip">Profil tambahan</span>}
                   <div className="row-actions">
-                    <button className="btn btn-small" onClick={() => void (async () => { await saveSetting("dosen_aktif_id", String(d.id)); showToast(`${d.nama} menjadi dosen aktif.`); })()}>Jadikan Aktif</button>
                     <button className="btn btn-small" onClick={() => openEditor({
                       table: "dosen", title: "Edit Dosen", id: d.id, numericKeys: [], nullableKeys: ["nidn", "email", "no_hp", "prodi", "fakultas", "foto"],
                       fields: [
@@ -1480,7 +1906,7 @@ export default function SmartClassApp() {
         )}
 
         {view === "rekap" && (
-          <section className="module">
+          <section className="module no-print">
             <div className="module-head">
               <h2>Rekap &amp; Laporan — {activeKelas ? activeKelas.kode_kelas : "pilih kelas aktif"}</h2>
             </div>
@@ -1648,7 +2074,7 @@ export default function SmartClassApp() {
 
             <h3 style={{ margin: "26px 0 8px" }}>Backup Online (JSON)</h3>
             <p className="muted" style={{ fontSize: 13.5, maxWidth: 720 }}>
-              Backup mengekspor seluruh data (semua tabel) ke satu file JSON. Restore/import akan memvalidasi file,
+              Backup mengekspor seluruh data milik akun Anda (semua tabel) ke satu file JSON. Restore/import akan memvalidasi file,
               menghapus data saat ini, lalu memasukkan isi backup. Lakukan backup sebelum restore atau reset semester.
             </p>
             <div className="row-actions">
@@ -1660,7 +2086,7 @@ export default function SmartClassApp() {
                   if (error) { showToast(`Backup gagal pada tabel ${t}: ${error.message}`); return; }
                   tables[t] = data ?? [];
                 }
-                const payload = { app: "smart-class-online", version: "v2026-10-25-v1", exported_at: new Date().toISOString(), tables };
+                const payload = { app: "smart-class-online", version: "v2026-10-27-v8", exported_at: new Date().toISOString(), tables };
                 const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
@@ -1690,9 +2116,12 @@ export default function SmartClassApp() {
                         else { await supabase.from(t).delete().neq("id", 0); }
                       }
                       for (const t of TABLES_BACKUP) {
-                        const rows = parsed.tables[t];
-                        if (!rows.length) continue;
-                        const { error } = await supabase.from(t).upsert(rows, { onConflict: t === "pengaturan" ? "kunci" : "id" });
+                        const rawRows = parsed.tables[t];
+                        if (!rawRows.length) continue;
+                        // v8: paksa kepemilikan ke akun yang sedang login,
+                        // agar backup lama (tanpa owner_id) tetap bisa dipulihkan.
+                        const rows = rawRows.map((r) => ({ ...r, owner_id: sessionUser?.id ?? r.owner_id }));
+                        const { error } = await supabase.from(t).upsert(rows, { onConflict: t === "pengaturan" ? "owner_id,kunci" : "id" });
                         if (error) { showToast(`Restore gagal pada tabel ${t}: ${error.message}`); return; }
                       }
                       setActiveKelasId(null);
@@ -1758,13 +2187,14 @@ export default function SmartClassApp() {
                 { j: "Materi & Tugas", d: "Kelola materi, tugas, deadline, dan pengumpulan tugas per mahasiswa." },
                 { j: "Halaman Mahasiswa", d: "Bagikan link/QR per kelas: mahasiswa melihat info kelas, jadwal & topik pertemuan, materi, dan tugas tanpa login. Nilai dan absensi tidak ditampilkan." },
                 { j: "Rekap & Laporan", d: "Rekap kehadiran, nilai, dan laporan lengkap yang siap dicetak / disimpan PDF." },
+                { j: "Multi-Akun Dua Peran (v8)", d: "Setiap dosen memiliki data dan konteksnya sendiri. Admin/Rektor memantau agregat seluruh kampus dan mengelola akun dosen tanpa bisa mengubah data kerja dosen." },
                 { j: "Pengaturan", d: "Tahun akademik aktif, backup/restore JSON online, dan reset semester yang aman." },
               ].map((c) => (
                 <div key={c.j} className="class-card"><h3 style={{ fontSize: 16 }}>{c.j}</h3><p>{c.d}</p></div>
               ))}
             </div>
             <p className="muted" style={{ fontSize: 13, marginTop: 16 }}>
-              Versi paket: SMART CLASS ONLINE v2026-10-26-v7 • Teknologi: Next.js + Supabase + Vercel.
+              Versi paket: SMART CLASS ONLINE v2026-10-27-v8 • Teknologi: Next.js + Supabase + Vercel.
               Program studi yang didukung Export SIAKAD: PGMI (86232), PAI (86208), Ekonomi Syariah (60206), Hukum Keluarga Islam (74230).
             </p>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
@@ -1777,6 +2207,23 @@ export default function SmartClassApp() {
           </section>
         )}
       </main>
+
+      {accountModal && (
+        <AccountActionModal
+          mode={accountModal.mode}
+          userId={accountModal.userId}
+          dosenId={accountModal.dosenId}
+          dosenNama={accountModal.dosenId ? dosenList.find((d) => d.id === accountModal.dosenId)?.nama : undefined}
+          initialEmail={accountModal.initialEmail}
+          dosenList={dosenList}
+          linkedDosenIds={new Set(accounts.map((a) => a.dosen_id).filter((x): x is number => typeof x === "number"))}
+          onClose={() => setAccountModal(null)}
+          onSubmit={async (body) => {
+            const ok = await accountAction(body, "Operasi akun berhasil disimpan.");
+            return ok;
+          }}
+        />
+      )}
 
       {editor && (
         <EditorModal

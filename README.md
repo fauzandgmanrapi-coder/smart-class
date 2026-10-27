@@ -102,6 +102,61 @@ Login dengan user Auth dari langkah 2, lalu cek berurutan:
 
 ---
 
+## 🔄 Pembaruan v2026-10-27-v8 — Multi-Akun Dua Peran (Dosen & Admin)
+
+Pembaruan arsitektur terbesar sejak rilis: aplikasi tidak lagi
+satu dataset bersama untuk semua akun login.
+
+**Perubahan konsep:**
+
+1. **Setiap akun dosen punya data sendiri.** Semua tabel kini
+   memiliki `owner_id`; RLS memastikan dosen hanya bisa membaca
+   dan mengubah baris miliknya. Konteks aplikasi adalah akun
+   sendiri — penunjuk global "dosen aktif" dihapus, "kelas aktif"
+   dan "tahun aktif" kini tersimpan per pengguna.
+2. **Peran Admin (Rektor/Admin kampus).** Akun admin masuk ke
+   **Dashboard Admin** (jumlah dosen, kelas, mahasiswa, rata-rata
+   kehadiran, distribusi nilai huruf agregat, ringkasan per dosen)
+   dan **Manajemen Akun Dosen** (buat akun dosen, reset password,
+   nonaktifkan/aktifkan, lepas/tautkan profil). Admin hanya
+   *membaca* data dosen — tidak bisa menulis kelas, absensi,
+   nilai, dan data kerja dosen lainnya.
+3. **Backup/Restore JSON dan Reset Semester kini hanya menyentuh
+   data milik akun yang sedang login.** Halaman Mahasiswa
+   (`/m/[token]`) dan pengumpulan tugas online tetap bekerja
+   seperti sebelumnya.
+4. **Perbaikan cetak Rekap & Laporan.** Yang tercetak kini hanya
+   dokumen laporan formalnya — kartu pemilih laporan, tombol
+   Pratinjau, judul/meta view, dan tabel pratinjau layar tidak
+   lagi ikut tercetak sebagai halaman pertama PDF.
+
+**Langkah deploy v8 (urutan wajib):**
+
+1. **Backup dulu** — dari aplikasi versi lama: Pengaturan →
+   Export Backup JSON. Simpan file-nya di tempat aman.
+2. **Jalankan migrasi** `supabase/migrasi-v8-multi-akun.sql` di
+   Supabase SQL Editor (seluruh file, sekali Run). Semua data lama
+   otomatis menjadi milik akun `nurfauzan79@gmail.com`.
+3. **Deploy Edge Function** `create-lecturer-account`:
+   Supabase → Edge Functions → Create a new function → nama
+   `create-lecturer-account` → tempel isi
+   `supabase/functions/create-lecturer-account/index.ts` → Deploy.
+4. **Upload seluruh isi paket ini ke GitHub** seperti biasa
+   (termasuk `supabase/functions/` dan file migrasi), tunggu
+   Vercel selesai deploy, lalu Ctrl+F5.
+5. **Tetapkan admin pertama** (bila ingin akun Rektor/Admin):
+   buat user-nya di Authentication → Users, lalu jalankan potongan
+   SQL "MENETAPKAN ADMIN PERTAMA" di akhir file migrasi v8.
+6. **Verifikasi dua akun**: masuk sebagai dosen → data lama utuh
+   dan menu lengkap; masuk sebagai admin → yang tampil hanya
+   Dashboard Admin + Manajemen Akun Dosen + Tentang.
+
+Self-check paket: baris pertama `VERSION.txt` adalah
+**`SMART CLASS ONLINE v2026-10-27-v8`** dan versi di
+`package.json` adalah **1.5.0**.
+
+---
+
 ## 🔄 Pembaruan v2026-10-26-v7 — Tanda Tangan Atasan + Dashboard Monitoring
 
 Dua peningkatan — **tanpa migrasi SQL**:
@@ -249,22 +304,25 @@ Lakukan cek ini pada folder hasil ekstrak ZIP **sebelum** upload ke GitHub,
 agar tidak tertukar dengan versi lama:
 
 1. Buka file **`VERSION.txt`** di root folder — isinya harus diawali
-   **`SMART CLASS ONLINE v2026-10-26-v7`**.
+   **`SMART CLASS ONLINE v2026-10-27-v8`**.
 2. Buka **`src/components/SmartClassApp.tsx`** — tekan Ctrl+F dan
-   cari teks **`Tanda Tangan Laporan`**. Harus ketemu (fitur baru
-   di v7). Bila tidak ketemu, Anda membuka folder yang
+   cari teks **`Manajemen Akun Dosen`**. Harus ketemu (fitur baru
+   di v8). Bila tidak ketemu, Anda membuka folder yang
    salah/versi lama — ekstrak ulang ZIP
-   `smart-class-online-v2026-10-26-v7.zip` ke folder baru.
-3. Pastikan folder **`public/`** berisi **`logo-smartclass.png`** dan
+   `smart-class-online-v2026-10-27-v8.zip` ke folder baru.
+3. Pastikan file **`supabase/migrasi-v8-multi-akun.sql`** ada, dan
+   folder **`supabase/functions/create-lecturer-account/`** berisi
+   **`index.ts`** (Edge Function baru v8).
+4. Pastikan folder **`public/`** berisi **`logo-smartclass.png`** dan
    **`logo-manrapi.png`**, dan folder **`public/templates-siakad/`**
    berisi 4 file: `PAI.xlsx`, `PGMI.xlsx`, `HKI.xlsx`, `ESy.xlsx`.
-4. Ekstrak ZIP ke **folder baru** (jangan menimpa ekstraksi lama), upload dari
+5. Ekstrak ZIP ke **folder baru** (jangan menimpa ekstraksi lama), upload dari
    folder baru itu, lalu hapus ZIP & folder lama agar tidak tertukar.
 
-Marker unik build ini: teks **`Tanda Tangan Laporan`**,
-**`Dokumen ini dicetak dari`**, dan **`Distribusi Nilai Huruf`**
-di `src/components/SmartClassApp.tsx`, serta baris pertama
-`VERSION.txt` = `SMART CLASS ONLINE v2026-10-26-v7`.
+Marker unik build ini: teks **`Manajemen Akun Dosen`** dan
+**`Dashboard Admin Kampus`** di `src/components/SmartClassApp.tsx`,
+teks **`owner select`** di `supabase/migrasi-v8-multi-akun.sql`,
+serta baris pertama `VERSION.txt` = `SMART CLASS ONLINE v2026-10-27-v8`.
 
 ---
 
