@@ -1,84 +1,95 @@
-SMART CLASS ONLINE v2026-10-27-v8.2.1
+SMART CLASS ONLINE v2026-10-28-v9
 ====================================
 
-Pembaruan MIKRO dari v2026-10-27-v8.2: perbaikan tampilan
-"Invalid Date" pada Monitoring Dosen. Paket ini MENGGANTIKAN
-paket v8.2 (jalur deploy tetap v8 -> v8.2.1). Murni perbaikan
-antarmuka (frontend) — TIDAK ada migrasi SQL baru, skema/RLS/
-fungsi publik tidak berubah, format penyimpanan data tidak
-diubah sama sekali.
+Pembaruan FITUR dari v2026-10-27-v8.2.1: Asisten Smart Class —
+chatbot AI panduan penggunaan aplikasi di dalam aplikasi, untuk
+pengguna yang sudah login (dosen & admin). Paket ini
+MENGGANTIKAN paket v8.2.1. TIDAK ada migrasi SQL baru —
+skema/RLS/fungsi publik/Edge Function tidak berubah, folder
+supabase/ identik dengan v8/v8.2.1.
 
-Yang diperbaiki di v8.2.1:
-- Di Monitoring Dosen -> detail kelas -> bagian Tugas ->
-  daftar "Pengumpulan Mahasiswa", kolom Waktu Kumpul untuk
-  pengumpulan online sebelumnya tampil "Invalid Date".
-  Penyebabnya: nilai waktu_kumpul pengumpulan online
-  tersimpan sebagai teks tampilan lokal (dari RPC
-  pengumpulan online v5) yang tidak bisa diolah
-  new Date(...), sedangkan baris manual tersimpan ISO.
-- Perbaikan: helper aman fmtTanggalWaktu dipakai untuk
-  kolom Waktu Kumpul dan kolom Deadline tugas di dalam blok
-  Monitoring. Bila nilai valid -> diformat id-ID seperti
-  sebelumnya; bila tidak bisa diolah -> teks aslinya
-  ditampilkan apa adanya (persis seperti tampilan sisi
-  dosen yang selama ini terbaca normal); bila kosong -> "-".
-- Pemformatan di luar blok Monitoring TIDAK diubah;
-  pengalaman peran dosen tidak berubah sama sekali.
-- package.json -> versi 1.5.3.
+Yang baru di v9:
+- Tombol chat melayang di pojok kanan bawah (setelah login,
+  kedua peran) membuka panel "Asisten Smart Class — Panduan
+  penggunaan aplikasi": pesan sambutan, chip pertanyaan cepat
+  (input absensi, export SIAKAD, pengumpulan tugas mahasiswa,
+  bagikan tautan kelas, beda akun Dosen/Admin), indikator
+  "Asisten sedang mengetik...", Enter untuk kirim.
+- Route server baru POST /api/asisten (runtime nodejs)
+  memanggil Gemini REST gemini-2.5-flash via fetch (tanpa
+  SDK/dependensi baru). Kunci API dibaca dari env server
+  GEMINI_API_KEY (TANPA awalan NEXT_PUBLIC_): belum dipasang
+  -> 503 {error:"not_configured"} dan UI menampilkan pesan
+  ramah "asisten belum diaktifkan"; payload tidak valid -> 400
+  (maks 10 pesan terakhir, maks 1200 karakter/pesan); gangguan
+  upstream -> 502 tanpa membocorkan detail/kunci.
+- Basis pengetahuan src/lib/asisten-pengetahuan.ts: ringkasan
+  panduan lengkap dari Manual Book Edisi v5 + fitur v8 —
+  login, Pengaturan & tanda tangan, Profil Dosen, Dashboard &
+  grafik, Mata Kuliah, Kelas, Mahasiswa & impor Excel,
+  Pertemuan & Absensi + keterangan, Penilaian (bobot wajib
+  100%, skala huruf), Export SIAKAD, Materi & Tugas, Halaman
+  Mahasiswa & QR, Pengumpulan Tugas Online, Rekap & Laporan,
+  Backup/Restore/Reset, peran & isolasi data v8, Dashboard
+  Admin, Manajemen Akun Dosen, Monitoring Dosen hanya-lihat
+  (termasuk unduh berkas), pemecahan masalah.
+- System prompt membatasi asisten: HANYA menjawab penggunaan
+  Smart Class dari pengetahuan itu, langkah demi langkah dengan
+  nama menu persis, maks ±250 kata, tidak mengarang fitur,
+  tidak membahas/mengakses data nyata mahasiswa/nilai siapa
+  pun, menolak sopan pertanyaan di luar topik, dan mengarahkan
+  ke Manual Book / WhatsApp pengembang 0823-4555-5534 bila di
+  luar panduan.
+- Halaman Tentang menambah kartu "Asisten AI (v9)".
+- package.json -> versi 1.6.0.
 
-Seluruh isi v8.2 tetap berlaku di v8.2.1:
-- Menu admin "Monitoring Dosen" (grup menu admin, di antara
-  Dashboard Admin dan Manajemen Akun Dosen). Hanya tampil
-  untuk akun berperan admin.
-- Daftar dosen dengan ringkasan per dosen: jumlah kelas,
-  pertemuan terlaksana (status Selesai/Berlangsung) dari
-  total pertemuan, rata-rata % kehadiran, jumlah materi,
-  jumlah tugas.
-- Drill-down per dosen -> daftar kelasnya -> detail kelas
-  HANYA-LIHAT berisi: (a) Pertemuan: tanggal, jam, topik,
-  status; (b) Materi: judul, pertemuan terkait, deskripsi,
-  tautan file; (c) Tugas: judul, deadline, bobot, jumlah
-  pengumpulan beserta rincian statusnya + daftar pengumpulan
-  mahasiswa; (d) Mahasiswa: daftar peserta aktif kelas;
-  (e) Rekap Kehadiran per mahasiswa; (f) Rekap Nilai per
-  mahasiswa per komponen + nilai akhir & huruf — hanya bila
-  total bobot komponen kelas tepat 100%.
-- Data dimuat sekali oleh loadAdmin() lalu diagregasi di
-  memori — tanpa query per baris.
-- File supabase/ tidak berubah sama sekali dari v8/v8.1/v8.2.
+Seluruh isi v8.2.1 tetap berlaku di v9 (multi-akun dua peran,
+Dashboard Admin, Monitoring Dosen + daftar Pengumpulan
+Mahasiswa + perbaikan fmtTanggalWaktu, halaman mahasiswa,
+pengumpulan online, tanda tangan laporan, grafik dashboard).
 
 Marker self-check: baris pertama file ini persis
-"SMART CLASS ONLINE v2026-10-27-v8.2.1"; di
-src/components/SmartClassApp.tsx ada teks "Monitoring Dosen"
-(menu admin), "Mode Pantau", "Pengumpulan Mahasiswa", dan
-"fmtTanggalWaktu" (helper baru v8.2.1);
-versi di package.json adalah "1.5.3".
+"SMART CLASS ONLINE v2026-10-28-v9"; teks "Asisten Smart Class"
+ada di src/components/AsistenChat.tsx; teks "AsistenChat"
+(import + render) dan kartu "Asisten AI (v9)" ada di
+src/components/SmartClassApp.tsx; route src/app/api/asisten/
+route.ts terdaftar pada hasil build sebagai /api/asisten;
+versi di package.json adalah "1.6.0".
 
-Urutan deploy (dari v8 / v8.2 — TANPA langkah migrasi SQL):
+Urutan deploy (dari v8.2.1 — TANPA langkah migrasi SQL):
 1) Upload seluruh isi paket ke GitHub (timpa file lama).
-2) Tunggu deploy Vercel selesai, lalu Ctrl+F5 di aplikasi.
-3) Login sebagai admin -> Monitoring Dosen -> buka satu
-   dosen dan satu kelas -> pada bagian Tugas pastikan kolom
-   Waktu Kumpul daftar Pengumpulan Mahasiswa tidak lagi
-   menampilkan "Invalid Date" (baris pengumpulan online
-   menampilkan teks waktu aslinya).
-   (Bila tampilannya belum berubah, bundle lama masih
-   tersaji — uji di jendela privat/incognito.)
-Untuk yang BARU memasang dari nol: ikuti panduan deploy
-lengkap di README (termasuk migrasi v8 dan Edge Function)
-terlebih dahulu, urutan di atas hanya untuk pembaruan v8.2.1.
+2) Buat kunci API Gemini di Google AI Studio
+   (aistudio.google.com -> Get API key -> Create API key).
+3) Di Vercel: Settings -> Environment Variables -> tambahkan
+   GEMINI_API_KEY (semua environment, TANPA NEXT_PUBLIC_).
+   Kunci bersifat rahasia — jangan dibagikan, jangan masuk
+   GitHub/chat.
+4) Redeploy, tunggu selesai, lalu Ctrl+F5 di aplikasi.
+5) Login -> klik tombol chat pojok kanan bawah -> uji chip
+   "Cara export nilai ke SIAKAD?" (jawaban harus menyebut menu
+   Penilaian dan prasyarat total bobot 100%).
+   (Tanpa langkah 2-3, panel tetap tampil tetapi menjawab
+   bahwa asisten belum diaktifkan.)
+Panduan deploy lengkap ada di folder smart-class-v9
+(panduan-deploy-v9.md). Untuk yang BARU memasang dari nol:
+ikuti panduan deploy lengkap di README (termasuk migrasi v8
+dan Edge Function) terlebih dahulu.
 
 Isi paket lengkap:
-- package.json / package-lock.json — manifest versi 1.5.3
-- next.config.mjs, tsconfig.json, vercel.json, .env.example, .gitignore
-- README.md — panduan deploy + langkah pembaruan s.d. v8.2.1
+- package.json / package-lock.json — manifest versi 1.6.0
+- next.config.mjs, tsconfig.json, vercel.json, .env.example
+  (kini memuat contoh GEMINI_API_KEY), .gitignore
+- README.md — panduan deploy + langkah pembaruan s.d. v9
 - VERSION.txt — file ini
 - src/app/ — layout, / (pengarah), /login, /dashboard,
   /m/[token] (Halaman Mahasiswa + pengumpulan), globals.css
+  (ditambah gaya panel Asisten), api/asisten/route.ts (BARU)
 - src/components/ — SmartClassApp.tsx (11 modul dosen + panel
   Bagikan + Dashboard Admin + Monitoring Dosen + Manajemen
-  Akun Dosen), Setup.tsx
-- src/lib/ — supabase.ts, types.ts, siakad.ts (export SIAKAD)
+  Akun Dosen + AsistenChat terpasang), Setup.tsx,
+  AsistenChat.tsx (BARU)
+- src/lib/ — supabase.ts, types.ts, siakad.ts (export SIAKAD),
+  asisten-pengetahuan.ts (BARU — basis pengetahuan asisten)
 - supabase/schema.sql — skema akhir v8 (instalasi baru)
 - supabase/migrasi-v2-halaman-mahasiswa.sql
 - supabase/migrasi-v5-pengumpulan-online.sql

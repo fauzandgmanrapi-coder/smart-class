@@ -494,3 +494,69 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 .hm-msg.ok { background: #dcfce7; color: #166534; }
 .hm-msg.err { background: #fbe9e4; color: var(--danger); }
 .hm-note { font-size: 12.5px; color: var(--muted); margin: 10px 0 4px; }
+
+/* ---------- Asisten Smart Class (v9) ---------- */
+.asisten-fab {
+  position: fixed; right: 22px; bottom: 22px; z-index: 120;
+  width: 58px; height: 58px; border-radius: 50%; border: none; cursor: pointer;
+  background: linear-gradient(135deg, var(--navy), var(--terra));
+  color: #fff; font-size: 26px; line-height: 1;
+  box-shadow: var(--shadow-lift);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+.asisten-fab:hover { transform: translateY(-2px); filter: brightness(1.07); }
+.asisten-panel {
+  position: fixed; right: 22px; bottom: 22px; z-index: 120;
+  width: 380px; max-width: calc(100vw - 24px);
+  height: min(70vh, 640px); max-height: calc(100vh - 32px);
+  background: #fff; border: 1px solid var(--border); border-radius: 18px;
+  box-shadow: var(--shadow-lift); overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.asisten-head {
+  background: linear-gradient(135deg, var(--navy), var(--emerald-2));
+  color: #fff; padding: 13px 16px;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+}
+.asisten-head strong { display: block; font-size: 15.5px; }
+.asisten-head span { display: block; font-size: 12.5px; opacity: 0.82; margin-top: 2px; font-weight: 600; }
+.asisten-close {
+  background: rgba(255, 255, 255, 0.14); border: none; color: #fff; cursor: pointer;
+  width: 30px; height: 30px; border-radius: 9px; font-size: 14px; flex: 0 0 auto;
+}
+.asisten-close:hover { background: rgba(255, 255, 255, 0.28); }
+.asisten-body {
+  flex: 1; overflow-y: auto; padding: 14px 12px; background: var(--ivory);
+  display: flex; flex-direction: column; gap: 9px;
+}
+.asisten-row { display: flex; }
+.asisten-row.user { justify-content: flex-end; }
+.asisten-bubble {
+  max-width: 86%; padding: 9px 13px; border-radius: 14px;
+  font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; word-break: break-word;
+  background: #fff; border: 1px solid var(--border); color: var(--ink);
+  border-bottom-left-radius: 5px;
+}
+.asisten-row.user .asisten-bubble {
+  background: var(--terra); border-color: var(--terra); color: #fff;
+  border-bottom-left-radius: 14px; border-bottom-right-radius: 5px;
+}
+.asisten-typing { color: var(--muted); font-style: italic; }
+.asisten-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 2px; }
+.asisten-chip {
+  background: #fff; border: 1px solid var(--gold); color: var(--terra);
+  border-radius: 999px; padding: 7px 12px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  text-align: left;
+}
+.asisten-chip:hover { background: var(--gold-soft); }
+.asisten-form {
+  display: flex; gap: 8px; padding: 10px 12px; background: #fff;
+  border-top: 1px solid var(--border);
+}
+.asisten-form input { flex: 1; }
+.asisten-form .btn { flex: 0 0 auto; }
+@media (max-width: 640px) {
+  .asisten-fab { right: 16px; bottom: 16px; }
+  .asisten-panel { right: 12px; left: 12px; bottom: 12px; width: auto; height: min(76vh, 680px); }
+}

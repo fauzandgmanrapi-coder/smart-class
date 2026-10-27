@@ -25,6 +25,7 @@ import {
 import { deteksiProdi, exportSiakadWorkbook } from "@/lib/siakad";
 import QRCode from "qrcode";
 import { SetupScreen, useRequireSession, useSessionUser } from "@/components/Setup";
+import AsistenChat from "@/components/AsistenChat";
 
 type View =
   | "dashboard" | "dosen" | "matakuliah" | "kelas" | "mahasiswa"
@@ -2410,7 +2411,7 @@ export default function SmartClassApp() {
                   if (error) { showToast(`Backup gagal pada tabel ${t}: ${error.message}`); return; }
                   tables[t] = data ?? [];
                 }
-                const payload = { app: "smart-class-online", version: "v2026-10-27-v8.2.1", exported_at: new Date().toISOString(), tables };
+                const payload = { app: "smart-class-online", version: "v2026-10-28-v9", exported_at: new Date().toISOString(), tables };
                 const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
@@ -2512,13 +2513,14 @@ export default function SmartClassApp() {
                 { j: "Halaman Mahasiswa", d: "Bagikan link/QR per kelas: mahasiswa melihat info kelas, jadwal & topik pertemuan, materi, dan tugas tanpa login. Nilai dan absensi tidak ditampilkan." },
                 { j: "Rekap & Laporan", d: "Rekap kehadiran, nilai, dan laporan lengkap yang siap dicetak / disimpan PDF." },
                 { j: "Multi-Akun Dua Peran (v8)", d: "Setiap dosen memiliki data dan konteksnya sendiri. Admin/Rektor memantau agregat seluruh kampus dan mengelola akun dosen tanpa bisa mengubah data kerja dosen." },
+                { j: "Asisten AI (v9)", d: "Chatbot panduan penggunaan aplikasi (tombol chat pojok kanan bawah) yang menjawab pertanyaan seputar cara kerja Smart Class berdasarkan Manual Book, untuk dosen dan admin yang sudah login." },
                 { j: "Pengaturan", d: "Tahun akademik aktif, backup/restore JSON online, dan reset semester yang aman." },
               ].map((c) => (
                 <div key={c.j} className="class-card"><h3 style={{ fontSize: 16 }}>{c.j}</h3><p>{c.d}</p></div>
               ))}
             </div>
             <p className="muted" style={{ fontSize: 13, marginTop: 16 }}>
-              Versi paket: SMART CLASS ONLINE v2026-10-27-v8.2.1 • Teknologi: Next.js + Supabase + Vercel.
+              Versi paket: SMART CLASS ONLINE v2026-10-28-v9 • Teknologi: Next.js + Supabase + Vercel.
               Program studi yang didukung Export SIAKAD: PGMI (86232), PAI (86208), Ekonomi Syariah (60206), Hukum Keluarga Islam (74230).
             </p>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
@@ -2718,6 +2720,7 @@ export default function SmartClassApp() {
       )}
 
       {toast && <div className="toast no-print">{toast}</div>}
+      <AsistenChat />
     </div>
   );
 }

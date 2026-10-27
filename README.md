@@ -102,6 +102,65 @@ Login dengan user Auth dari langkah 2, lalu cek berurutan:
 
 ---
 
+## 🔄 Pembaruan v2026-10-28-v9 — Asisten AI Panduan Penggunaan (Chatbot)
+
+Fitur baru: **Asisten Smart Class** — chatbot AI di dalam aplikasi
+yang menjawab pertanyaan tentang **cara menggunakan Smart Class**
+berdasarkan Manual Book. Murni fitur panduan; asisten **tidak**
+memiliki akses ke data mahasiswa/nilai/absensi siapa pun.
+
+**Cara tampilnya:** setelah login (dosen maupun admin), muncul
+tombol chat 💬 melayang di pojok kanan bawah. Klik untuk membuka
+panel "Asisten Smart Class — Panduan penggunaan aplikasi"
+beserta chip pertanyaan cepat (input absensi, export SIAKAD,
+pengumpulan tugas mahasiswa, bagikan tautan kelas, beda akun
+Dosen/Admin). Tanpa kunci API, panel tetap tampil tetapi
+menjawab dengan pesan ramah bahwa asisten belum diaktifkan.
+
+**Arsitektur:**
+
+- UI: `src/components/AsistenChat.tsx`, dirender dari
+  `SmartClassApp.tsx` hanya setelah login (kedua peran).
+- Server: route `POST /api/asisten`
+  (`src/app/api/asisten/route.ts`, runtime nodejs) memanggil
+  Gemini REST (`gemini-2.5-flash:generateContent`) via `fetch`
+  — tanpa SDK/dependensi baru. Batas: 10 pesan terakhir,
+  maks 1200 karakter per pesan; payload tidak valid → 400;
+  kunci belum dipasang → 503 `{error:"not_configured"}`;
+  gangguan upstream → 502 tanpa membocorkan detail.
+- Pengetahuan: `src/lib/asisten-pengetahuan.ts` merangkai
+  persona + ringkasan panduan lengkap (dari Manual Book Edisi
+  v5 + fitur v8) + aturan ketat: hanya menjawab dari panduan,
+  menyebut nama menu persis, maks ±250 kata, menolak topik di
+  luar aplikasi, dan mengarahkan ke Manual Book / WhatsApp
+  pengembang 0823-4555-5534 bila di luar jangkauan.
+
+**Langkah deploy v9:**
+
+1. Upload seluruh isi paket ke GitHub (timpa file lama) —
+   **tanpa migrasi SQL baru**; folder `supabase/` tidak berubah.
+2. Buat kunci API di **Google AI Studio**:
+   `aistudio.google.com` → **Get API key** → **Create API key**
+   → salin kuncinya.
+3. Di Vercel: **Settings → Environment Variables** → tambah
+   `GEMINI_API_KEY` = kunci tadi (**TANPA** awalan
+   `NEXT_PUBLIC_`, berlaku untuk semua environment). Kunci ini
+   rahasia: jangan dibagikan ke siapa pun, jangan masuk
+   GitHub/chat.
+4. Redeploy (deploy ulang dari commit terbaru), lalu Ctrl+F5.
+5. Uji: login → buka panel Asisten → klik chip "Cara export
+   nilai ke SIAKAD?" dan pastikan jawaban menyebut menu
+   Penilaian dan prasyarat bobot 100%.
+
+Self-check paket: baris pertama `VERSION.txt` adalah
+**`SMART CLASS ONLINE v2026-10-28-v9`**, versi di
+`package.json` adalah **1.6.0**, teks **`Asisten Smart Class`**
+ada di `src/components/AsistenChat.tsx`, dan
+`src/components/SmartClassApp.tsx` memuat **`AsistenChat`**
+(import + render) serta kartu Tentang **`Asisten AI (v9)`**.
+
+---
+
 ## 🔄 Pembaruan v2026-10-27-v8.2.1 — Perbaikan "Invalid Date" di Monitoring
 
 Perbaikan mikro khusus tampilan Monitoring Dosen — **murni
