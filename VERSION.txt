@@ -1,95 +1,85 @@
-SMART CLASS ONLINE v2026-10-28-v9
+SMART CLASS ONLINE v2026-10-28-v9.0.1
 ====================================
 
-Pembaruan FITUR dari v2026-10-27-v8.2.1: Asisten Smart Class —
-chatbot AI panduan penggunaan aplikasi di dalam aplikasi, untuk
-pengguna yang sudah login (dosen & admin). Paket ini
-MENGGANTIKAN paket v8.2.1. TIDAK ada migrasi SQL baru —
-skema/RLS/fungsi publik/Edge Function tidak berubah, folder
-supabase/ identik dengan v8/v8.2.1.
+Perbaikan MIKRO diagnostik dari v2026-10-28-v9: route
+/api/asisten kini meneruskan penyebab kegagalan panggilan
+Gemini agar bisa dibaca persis, bukan lagi 502 generik saja.
+Paket ini MENGGANTIKAN paket v9. TIDAK ada migrasi SQL baru —
+folder supabase/ identik dengan v9/v8.
 
-Yang baru di v9:
-- Tombol chat melayang di pojok kanan bawah (setelah login,
-  kedua peran) membuka panel "Asisten Smart Class — Panduan
-  penggunaan aplikasi": pesan sambutan, chip pertanyaan cepat
-  (input absensi, export SIAKAD, pengumpulan tugas mahasiswa,
-  bagikan tautan kelas, beda akun Dosen/Admin), indikator
-  "Asisten sedang mengetik...", Enter untuk kirim.
-- Route server baru POST /api/asisten (runtime nodejs)
-  memanggil Gemini REST gemini-2.5-flash via fetch (tanpa
-  SDK/dependensi baru). Kunci API dibaca dari env server
-  GEMINI_API_KEY (TANPA awalan NEXT_PUBLIC_): belum dipasang
-  -> 503 {error:"not_configured"} dan UI menampilkan pesan
-  ramah "asisten belum diaktifkan"; payload tidak valid -> 400
-  (maks 10 pesan terakhir, maks 1200 karakter/pesan); gangguan
-  upstream -> 502 tanpa membocorkan detail/kunci.
-- Basis pengetahuan src/lib/asisten-pengetahuan.ts: ringkasan
-  panduan lengkap dari Manual Book Edisi v5 + fitur v8 —
-  login, Pengaturan & tanda tangan, Profil Dosen, Dashboard &
-  grafik, Mata Kuliah, Kelas, Mahasiswa & impor Excel,
-  Pertemuan & Absensi + keterangan, Penilaian (bobot wajib
-  100%, skala huruf), Export SIAKAD, Materi & Tugas, Halaman
-  Mahasiswa & QR, Pengumpulan Tugas Online, Rekap & Laporan,
-  Backup/Restore/Reset, peran & isolasi data v8, Dashboard
-  Admin, Manajemen Akun Dosen, Monitoring Dosen hanya-lihat
-  (termasuk unduh berkas), pemecahan masalah.
-- System prompt membatasi asisten: HANYA menjawab penggunaan
-  Smart Class dari pengetahuan itu, langkah demi langkah dengan
-  nama menu persis, maks ±250 kata, tidak mengarang fitur,
-  tidak membahas/mengakses data nyata mahasiswa/nilai siapa
-  pun, menolak sopan pertanyaan di luar topik, dan mengarahkan
-  ke Manual Book / WhatsApp pengembang 0823-4555-5534 bila di
-  luar panduan.
-- Halaman Tentang menambah kartu "Asisten AI (v9)".
-- package.json -> versi 1.6.0.
+Yang berubah di v9.0.1 (HANYA src/app/api/asisten/route.ts):
+- Respons Gemini tidak OK -> route membaca error Google
+  ({error:{code,status,message}}), mencatat satu baris ringkas
+  "asisten-upstream" + status HTTP + error.status + pesan
+  (dipotong maks 200 karakter) via console.error ke log
+  server, dan membalas klien:
+  502 {error:"upstream", upstream_status:<angka HTTP>,
+       upstream_code:<error.status Google atau "">}
+- fetch-nya sendiri gagal (jaringan/timeout) -> dicatat
+  "asisten-fetch-failed" + nama/pesan error (maks 200
+  karakter), dan membalas:
+  502 {error:"upstream", upstream_status:0,
+       upstream_code:"FETCH_FAILED"}
+- Kunci API TIDAK pernah ditulis ke log maupun respons.
+- Perilaku lain identik v9: payload tidak valid -> 400,
+  kunci belum dipasang -> 503 {error:"not_configured"},
+  sukses -> {reply}. UI AsistenChat.tsx tidak berubah
+  (menampilkan pesan generik yang sama untuk semua 502).
+- package.json -> versi 1.6.1.
 
-Seluruh isi v8.2.1 tetap berlaku di v9 (multi-akun dua peran,
-Dashboard Admin, Monitoring Dosen + daftar Pengumpulan
-Mahasiswa + perbaikan fmtTanggalWaktu, halaman mahasiswa,
-pengumpulan online, tanda tangan laporan, grafik dashboard).
+Untuk membaca penyebab kegagalan setelah deploy: buka log
+fungsi di Vercel (Deployments -> deployment aktif -> Logs /
+Functions) lalu ajukan satu pertanyaan ke Asisten; baris
+"asisten-upstream" menunjukkan status & kode Google-nya,
+mis. 400 API_KEY_INVALID (kunci salah), 404 (model tidak
+ditemukan), 429 RESOURCE_EXHAUSTED (kuota habis),
+403 PERMISSION_DENIED (API belum aktif/izin).
+
+Seluruh isi v9 tetap berlaku (Asisten Smart Class: tombol chat
+melayang setelah login, POST /api/asisten -> Gemini REST
+gemini-2.5-flash via env server GEMINI_API_KEY tanpa
+NEXT_PUBLIC_, basis pengetahuan asisten-pengetahuan.ts dari
+Manual Book v5 + fitur v8) dan seluruh isi v8.2.1 di bawahnya
+(multi-akun dua peran, Dashboard Admin, Monitoring Dosen,
+halaman mahasiswa, pengumpulan online, tanda tangan laporan,
+grafik dashboard, perbaikan fmtTanggalWaktu).
 
 Marker self-check: baris pertama file ini persis
-"SMART CLASS ONLINE v2026-10-28-v9"; teks "Asisten Smart Class"
-ada di src/components/AsistenChat.tsx; teks "AsistenChat"
-(import + render) dan kartu "Asisten AI (v9)" ada di
-src/components/SmartClassApp.tsx; route src/app/api/asisten/
-route.ts terdaftar pada hasil build sebagai /api/asisten;
-versi di package.json adalah "1.6.0".
+"SMART CLASS ONLINE v2026-10-28-v9.0.1"; teks "Asisten
+Smart Class" ada di src/components/AsistenChat.tsx; teks
+"asisten-upstream" ada di src/app/api/asisten/route.ts;
+versi di package.json adalah "1.6.1".
 
-Urutan deploy (dari v8.2.1 — TANPA langkah migrasi SQL):
+Urutan deploy (dari v9 — TANPA langkah migrasi SQL):
 1) Upload seluruh isi paket ke GitHub (timpa file lama).
-2) Buat kunci API Gemini di Google AI Studio
-   (aistudio.google.com -> Get API key -> Create API key).
-3) Di Vercel: Settings -> Environment Variables -> tambahkan
-   GEMINI_API_KEY (semua environment, TANPA NEXT_PUBLIC_).
-   Kunci bersifat rahasia — jangan dibagikan, jangan masuk
-   GitHub/chat.
-4) Redeploy, tunggu selesai, lalu Ctrl+F5 di aplikasi.
-5) Login -> klik tombol chat pojok kanan bawah -> uji chip
-   "Cara export nilai ke SIAKAD?" (jawaban harus menyebut menu
-   Penilaian dan prasyarat total bobot 100%).
-   (Tanpa langkah 2-3, panel tetap tampil tetapi menjawab
-   bahwa asisten belum diaktifkan.)
-Panduan deploy lengkap ada di folder smart-class-v9
-(panduan-deploy-v9.md). Untuk yang BARU memasang dari nol:
-ikuti panduan deploy lengkap di README (termasuk migrasi v8
-dan Edge Function) terlebih dahulu.
+2) Pastikan env GEMINI_API_KEY sudah terpasang di Vercel
+   (Settings -> Environment Variables, semua environment,
+   TANPA NEXT_PUBLIC_). Kunci bersifat rahasia — jangan
+   dibagikan, jangan masuk GitHub/chat.
+3) Redeploy, tunggu selesai, lalu Ctrl+F5 di aplikasi.
+4) Login -> klik tombol chat -> ajukan pertanyaan. Bila
+   masih gagal, respons 502 kini memuat upstream_status &
+   upstream_code, dan log server memuat baris
+   "asisten-upstream" — laporkan kedua nilai itu untuk
+   diagnosis lanjutan.
+Panduan deploy lengkap v9 ada di folder smart-class-v9
+(panduan-deploy-v9.md).
 
 Isi paket lengkap:
-- package.json / package-lock.json — manifest versi 1.6.0
+- package.json / package-lock.json — manifest versi 1.6.1
 - next.config.mjs, tsconfig.json, vercel.json, .env.example
-  (kini memuat contoh GEMINI_API_KEY), .gitignore
-- README.md — panduan deploy + langkah pembaruan s.d. v9
+  (memuat contoh GEMINI_API_KEY), .gitignore, next-env.d.ts
+- README.md — panduan deploy + langkah pembaruan s.d. v9.0.1
 - VERSION.txt — file ini
 - src/app/ — layout, / (pengarah), /login, /dashboard,
-  /m/[token] (Halaman Mahasiswa + pengumpulan), globals.css
-  (ditambah gaya panel Asisten), api/asisten/route.ts (BARU)
+  /m/[token] (Halaman Mahasiswa + pengumpulan), globals.css,
+  api/asisten/route.ts (diagnostik v9.0.1)
 - src/components/ — SmartClassApp.tsx (11 modul dosen + panel
   Bagikan + Dashboard Admin + Monitoring Dosen + Manajemen
   Akun Dosen + AsistenChat terpasang), Setup.tsx,
-  AsistenChat.tsx (BARU)
+  AsistenChat.tsx
 - src/lib/ — supabase.ts, types.ts, siakad.ts (export SIAKAD),
-  asisten-pengetahuan.ts (BARU — basis pengetahuan asisten)
+  asisten-pengetahuan.ts (basis pengetahuan asisten)
 - supabase/schema.sql — skema akhir v8 (instalasi baru)
 - supabase/migrasi-v2-halaman-mahasiswa.sql
 - supabase/migrasi-v5-pengumpulan-online.sql

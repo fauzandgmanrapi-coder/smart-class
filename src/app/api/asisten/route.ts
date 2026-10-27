@@ -85,7 +85,31 @@ export async function POST(req: NextRequest) {
       }
     );
     if (!res.ok) {
-      return NextResponse.json({ error: "upstream" }, { status: 502 });
+      // Diagnostik v9.0.1: catat status/kode error Google ke log server
+      // (TANPA kunci API/header) dan teruskan status + kodenya ke klien
+      // agar penyebab kegagalan bisa dibaca persis.
+      const teksError = await res.text().catch(() => "");
+      let kodeGoogle = "";
+      let pesanGoogle = "";
+      try {
+        const j = JSON.parse(teksError) as {
+          error?: { status?: unknown; message?: unknown };
+        };
+        if (typeof j?.error?.status === "string") kodeGoogle = j.error.status;
+        if (typeof j?.error?.message === "string") pesanGoogle = j.error.message;
+      } catch {
+        pesanGoogle = teksError;
+      }
+      console.error(
+        "asisten-upstream",
+        res.status,
+        kodeGoogle,
+        pesanGoogle.slice(0, 200)
+      );
+      return NextResponse.json(
+        { error: "upstream", upstream_status: res.status, upstream_code: kodeGoogle },
+        { status: 502 }
+      );
     }
     const data: unknown = await res.json();
     const parts = (
@@ -103,9 +127,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "upstream" }, { status: 502 });
     }
     return NextResponse.json({ reply });
-  } catch {
-    // Timeout/jaringan/upstream: jangan bocorkan detail apa pun.
-    return NextResponse.json({ error: "upstream" }, { status: 502 });
+  } catch (err) {
+    // fetch-nya sendiri gagal (jaringan/timeout): catat nama/pesan error
+    // ke log server (TANPA kunci API) dan tandai FETCH_FAILED ke klien.
+    const nama = err instanceof Error ? err.name : "Error";
+    const pesan = err instanceof Error ? err.message : String(err);
+    console.error("asisten-fetch-failed", nama, pesan.slice(0, 200));
+    return NextResponse.json(
+      { error: "upstream", upstream_status: 0, upstream_code: "FETCH_FAILED" },
+      { status: 502 }
+    );
   } finally {
     clearTimeout(timer);
   }

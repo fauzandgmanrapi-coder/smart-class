@@ -161,6 +161,31 @@ ada di `src/components/AsistenChat.tsx`, dan
 
 ---
 
+## 🔄 Pembaruan v2026-10-28-v9.0.1 — Diagnostik Error Asisten
+
+Perbaikan mikro khusus **diagnostik** route `/api/asisten` —
+**tanpa perubahan perilaku lain, tanpa migrasi SQL baru**,
+menggantikan paket v9. Kegagalan panggilan Gemini kini bisa
+dibaca penyebab pastinya:
+
+- Bila respons Gemini tidak OK: route mencatat satu baris
+  `asisten-upstream` (status HTTP + `error.status` Google +
+  potongan pesan, maks 200 karakter) ke log server, dan klien
+  menerima `502 {error:"upstream", upstream_status:<angka>,
+  upstream_code:<kode Google>}`.
+- Bila fetch-nya sendiri gagal (jaringan/timeout): dicatat
+  sebagai `asisten-fetch-failed` dan klien menerima
+  `502 {error:"upstream", upstream_status:0,
+  upstream_code:"FETCH_FAILED"}`.
+- Kunci API tidak pernah ditulis ke log maupun respons.
+
+Self-check paket: baris pertama `VERSION.txt` adalah
+**`SMART CLASS ONLINE v2026-10-28-v9.0.1`**, versi di
+`package.json` adalah **1.6.1**, teks **`Asisten Smart Class`**
+ada di `src/components/AsistenChat.tsx`.
+
+---
+
 ## 🔄 Pembaruan v2026-10-27-v8.2.1 — Perbaikan "Invalid Date" di Monitoring
 
 Perbaikan mikro khusus tampilan Monitoring Dosen — **murni
