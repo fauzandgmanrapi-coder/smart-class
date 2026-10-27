@@ -2411,7 +2411,7 @@ export default function SmartClassApp() {
                   if (error) { showToast(`Backup gagal pada tabel ${t}: ${error.message}`); return; }
                   tables[t] = data ?? [];
                 }
-                const payload = { app: "smart-class-online", version: "v2026-10-28-v9.0.1", exported_at: new Date().toISOString(), tables };
+                const payload = { app: "smart-class-online", version: "v2026-10-28-v9.0.2", exported_at: new Date().toISOString(), tables };
                 const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
@@ -2520,7 +2520,7 @@ export default function SmartClassApp() {
               ))}
             </div>
             <p className="muted" style={{ fontSize: 13, marginTop: 16 }}>
-              Versi paket: SMART CLASS ONLINE v2026-10-28-v9.0.1 • Teknologi: Next.js + Supabase + Vercel.
+              Versi paket: SMART CLASS ONLINE v2026-10-28-v9.0.2 • Teknologi: Next.js + Supabase + Vercel.
               Program studi yang didukung Export SIAKAD: PGMI (86232), PAI (86208), Ekonomi Syariah (60206), Hukum Keluarga Islam (74230).
             </p>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>

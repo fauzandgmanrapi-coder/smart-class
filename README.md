@@ -161,6 +161,32 @@ ada di `src/components/AsistenChat.tsx`, dan
 
 ---
 
+## 🔄 Pembaruan v2026-10-28-v9.0.2 — Rantai Model Cadangan Asisten
+
+Perbaikan mikro route `/api/asisten` — **tanpa perubahan
+perilaku lain, tanpa migrasi SQL baru**, menggantikan paket
+v9.0.1. Diagnosis live v9.0.1 menunjukkan `404 NOT_FOUND`:
+kunci API valid dan Gemini API aktif, tetapi model
+`gemini-2.5-flash` tidak tersedia untuk kunci/proyek itu.
+
+- Route kini mencoba `DAFTAR_MODEL` **berurutan**:
+  `gemini-2.5-flash` → `gemini-flash-latest` →
+  `gemini-2.5-flash-lite` → `gemini-2.0-flash`; respons OK
+  pertama langsung menjadi `{reply}`.
+- Jatuh ke model berikutnya **hanya pada 404**; error lain
+  (400 kunci tidak valid, 403, 429 kuota) dan kegagalan
+  fetch (`FETCH_FAILED`) langsung dilaporkan dengan format
+  diagnostik v9.0.1 (`upstream_status` + `upstream_code`).
+- Bila semua model 404, klien menerima error terakhir
+  (404 `NOT_FOUND`).
+
+Self-check paket: baris pertama `VERSION.txt` adalah
+**`SMART CLASS ONLINE v2026-10-28-v9.0.2`**, versi di
+`package.json` adalah **1.6.2**, teks **`gemini-flash-latest`**
+ada di `src/app/api/asisten/route.ts`.
+
+---
+
 ## 🔄 Pembaruan v2026-10-28-v9.0.1 — Diagnostik Error Asisten
 
 Perbaikan mikro khusus **diagnostik** route `/api/asisten` —

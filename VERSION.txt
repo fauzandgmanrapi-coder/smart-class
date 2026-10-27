@@ -1,79 +1,79 @@
-SMART CLASS ONLINE v2026-10-28-v9.0.1
+SMART CLASS ONLINE v2026-10-28-v9.0.2
 ====================================
 
-Perbaikan MIKRO diagnostik dari v2026-10-28-v9: route
-/api/asisten kini meneruskan penyebab kegagalan panggilan
-Gemini agar bisa dibaca persis, bukan lagi 502 generik saja.
-Paket ini MENGGANTIKAN paket v9. TIDAK ada migrasi SQL baru —
-folder supabase/ identik dengan v9/v8.
+Perbaikan MIKRO dari v2026-10-28-v9.0.1: route /api/asisten
+kini mencoba beberapa model Gemini BERURUTAN (rantai model
+cadangan). Diagnosis live v9.0.1 terbukti 404 NOT_FOUND:
+API key user VALID (key salah akan memberi 400) dan API
+Gemini aktif, tetapi model "gemini-2.5-flash" tidak tersedia
+untuk key/proyek user — obatnya mencoba model lain sampai
+ada yang berhasil.
+Paket ini MENGGANTIKAN paket v9.0.1. TIDAK ada migrasi SQL
+baru — folder supabase/ identik dengan v9/v8.
 
-Yang berubah di v9.0.1 (HANYA src/app/api/asisten/route.ts):
-- Respons Gemini tidak OK -> route membaca error Google
-  ({error:{code,status,message}}), mencatat satu baris ringkas
-  "asisten-upstream" + status HTTP + error.status + pesan
-  (dipotong maks 200 karakter) via console.error ke log
-  server, dan membalas klien:
-  502 {error:"upstream", upstream_status:<angka HTTP>,
-       upstream_code:<error.status Google atau "">}
-- fetch-nya sendiri gagal (jaringan/timeout) -> dicatat
-  "asisten-fetch-failed" + nama/pesan error (maks 200
-  karakter), dan membalas:
-  502 {error:"upstream", upstream_status:0,
-       upstream_code:"FETCH_FAILED"}
+Yang berubah di v9.0.2 (HANYA src/app/api/asisten/route.ts):
+- Konstanta DAFTAR_MODEL dicoba satu per satu:
+  "gemini-2.5-flash" -> "gemini-flash-latest" ->
+  "gemini-2.5-flash-lite" -> "gemini-2.0-flash".
+  Isi permintaan identik untuk tiap model (systemInstruction,
+  contents, generationConfig), kunci dari env server
+  GEMINI_API_KEY, timeout 20 detik per percobaan.
+- Respons OK dari model mana pun -> langsung balas {reply}.
+- Respons 404 -> dicatat "asisten-upstream" + nama model +
+  status + kode Google (pola v9.0.1), lalu LANJUT ke model
+  berikutnya.
+- Respons error SELAIN 404 (400 key tidak valid, 403, 429
+  kuota, dst) -> TIDAK lanjut ke model lain; langsung balas
+  502 diagnostik pola v9.0.1 (upstream_status +
+  upstream_code) untuk error itu.
+- fetch gagal (jaringan/timeout) -> langsung 502
+  {error:"upstream", upstream_status:0,
+  upstream_code:"FETCH_FAILED"} seperti v9.0.1.
+- Bila SEMUA model menjawab 404 -> balas 502 dengan
+  upstream_status/upstream_code dari respons TERAKHIR
+  (404 NOT_FOUND), sama seperti diagnosis v9.0.1.
 - Kunci API TIDAK pernah ditulis ke log maupun respons.
-- Perilaku lain identik v9: payload tidak valid -> 400,
-  kunci belum dipasang -> 503 {error:"not_configured"},
-  sukses -> {reply}. UI AsistenChat.tsx tidak berubah
-  (menampilkan pesan generik yang sama untuk semua 502).
-- package.json -> versi 1.6.1.
+- Perilaku lain identik: payload tidak valid -> 400, kunci
+  belum dipasang -> 503 {error:"not_configured"}. UI
+  AsistenChat.tsx tidak berubah.
+- package.json -> versi 1.6.2.
 
-Untuk membaca penyebab kegagalan setelah deploy: buka log
-fungsi di Vercel (Deployments -> deployment aktif -> Logs /
-Functions) lalu ajukan satu pertanyaan ke Asisten; baris
-"asisten-upstream" menunjukkan status & kode Google-nya,
-mis. 400 API_KEY_INVALID (kunci salah), 404 (model tidak
-ditemukan), 429 RESOURCE_EXHAUSTED (kuota habis),
-403 PERMISSION_DENIED (API belum aktif/izin).
-
-Seluruh isi v9 tetap berlaku (Asisten Smart Class: tombol chat
-melayang setelah login, POST /api/asisten -> Gemini REST
-gemini-2.5-flash via env server GEMINI_API_KEY tanpa
-NEXT_PUBLIC_, basis pengetahuan asisten-pengetahuan.ts dari
-Manual Book v5 + fitur v8) dan seluruh isi v8.2.1 di bawahnya
-(multi-akun dua peran, Dashboard Admin, Monitoring Dosen,
-halaman mahasiswa, pengumpulan online, tanda tangan laporan,
-grafik dashboard, perbaikan fmtTanggalWaktu).
+Seluruh isi v9.0.1 & v9 tetap berlaku (diagnostik asisten,
+tombol chat melayang setelah login, basis pengetahuan
+asisten-pengetahuan.ts dari Manual Book v5 + fitur v8) dan
+seluruh isi v8.2.1 di bawahnya (multi-akun dua peran,
+Dashboard Admin, Monitoring Dosen, halaman mahasiswa,
+pengumpulan online, tanda tangan laporan, grafik dashboard,
+perbaikan fmtTanggalWaktu).
 
 Marker self-check: baris pertama file ini persis
-"SMART CLASS ONLINE v2026-10-28-v9.0.1"; teks "Asisten
+"SMART CLASS ONLINE v2026-10-28-v9.0.2"; teks "Asisten
 Smart Class" ada di src/components/AsistenChat.tsx; teks
-"asisten-upstream" ada di src/app/api/asisten/route.ts;
-versi di package.json adalah "1.6.1".
+"gemini-flash-latest" ada di src/app/api/asisten/route.ts;
+versi di package.json adalah "1.6.2".
 
-Urutan deploy (dari v9 — TANPA langkah migrasi SQL):
-1) Upload seluruh isi paket ke GitHub (timpa file lama).
-2) Pastikan env GEMINI_API_KEY sudah terpasang di Vercel
-   (Settings -> Environment Variables, semua environment,
-   TANPA NEXT_PUBLIC_). Kunci bersifat rahasia — jangan
+Urutan deploy (dari v9.0.1 — TANPA langkah migrasi SQL):
+1) Ekstrak paket ke folder BARU, upload seluruh isinya ke
+   GitHub (timpa file lama).
+2) Env GEMINI_API_KEY di Vercel TIDAK perlu diubah —
+   pastikan tetap terpasang (semua environment, TANPA
+   NEXT_PUBLIC_). Kunci bersifat rahasia — jangan
    dibagikan, jangan masuk GitHub/chat.
 3) Redeploy, tunggu selesai, lalu Ctrl+F5 di aplikasi.
-4) Login -> klik tombol chat -> ajukan pertanyaan. Bila
-   masih gagal, respons 502 kini memuat upstream_status &
-   upstream_code, dan log server memuat baris
-   "asisten-upstream" — laporkan kedua nilai itu untuk
-   diagnosis lanjutan.
+4) Login -> klik tombol chat -> ajukan pertanyaan;
+   asisten kini memakai model pertama yang tersedia.
 Panduan deploy lengkap v9 ada di folder smart-class-v9
 (panduan-deploy-v9.md).
 
 Isi paket lengkap:
-- package.json / package-lock.json — manifest versi 1.6.1
+- package.json / package-lock.json — manifest versi 1.6.2
 - next.config.mjs, tsconfig.json, vercel.json, .env.example
   (memuat contoh GEMINI_API_KEY), .gitignore, next-env.d.ts
-- README.md — panduan deploy + langkah pembaruan s.d. v9.0.1
+- README.md — panduan deploy + langkah pembaruan s.d. v9.0.2
 - VERSION.txt — file ini
 - src/app/ — layout, / (pengarah), /login, /dashboard,
   /m/[token] (Halaman Mahasiswa + pengumpulan), globals.css,
-  api/asisten/route.ts (diagnostik v9.0.1)
+  api/asisten/route.ts (rantai model cadangan v9.0.2)
 - src/components/ — SmartClassApp.tsx (11 modul dosen + panel
   Bagikan + Dashboard Admin + Monitoring Dosen + Manajemen
   Akun Dosen + AsistenChat terpasang), Setup.tsx,
