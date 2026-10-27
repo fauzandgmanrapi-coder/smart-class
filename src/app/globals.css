@@ -383,6 +383,8 @@ table.report-table td.c, table.report-table th.c { text-align: center; }
 .chip.warn { background: #fdf3d3; color: #7a5b00; }
 .chip.bad { background: #fbe9e4; color: var(--danger); }
 .chip.ok { background: #dcfce7; color: #166534; }
+/* v8.1 Monitoring Dosen: penanda mode pantau hanya-lihat untuk admin */
+.pantau-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; padding: 5px 12px; border-radius: 999px; background: #fdf3d3; color: #7a5b00; border: 1px solid #e9d48a; white-space: nowrap; }
 .context-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 18px; box-shadow: var(--shadow); }
 .context-bar > div { flex: 1; min-width: 200px; }
 .context-bar label { margin-bottom: 0; }

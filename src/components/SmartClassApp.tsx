@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { getSupabase } from "@/lib/supabase";
 import {
   STATUS_ABSENSI,
@@ -29,7 +29,7 @@ import { SetupScreen, useRequireSession, useSessionUser } from "@/components/Set
 type View =
   | "dashboard" | "dosen" | "matakuliah" | "kelas" | "mahasiswa"
   | "pertemuan" | "penilaian" | "materi" | "rekap" | "pengaturan" | "tentang"
-  | "admin-dashboard" | "admin-akun";
+  | "admin-dashboard" | "admin-akun" | "admin-monitoring";
 
 const VIEW_TITLES: Record<View, string> = {
   dashboard: "Dashboard",
@@ -45,6 +45,7 @@ const VIEW_TITLES: Record<View, string> = {
   tentang: "Tentang",
   "admin-dashboard": "Dashboard Admin",
   "admin-akun": "Manajemen Akun Dosen",
+  "admin-monitoring": "Monitoring Dosen",
 };
 
 const NAV: { view: View; icon: string; label: string }[] = [
@@ -63,6 +64,7 @@ const NAV: { view: View; icon: string; label: string }[] = [
 
 const NAV_ADMIN: { view: View; icon: string; label: string }[] = [
   { view: "admin-dashboard", icon: "🏛️", label: "Dashboard Admin" },
+  { view: "admin-monitoring", icon: "🔭", label: "Monitoring Dosen" },
   { view: "admin-akun", icon: "👥", label: "Manajemen Akun Dosen" },
   { view: "tentang", icon: "ℹ️", label: "Tentang" },
 ];
@@ -547,6 +549,9 @@ export default function SmartClassApp() {
     initialEmail?: string;
   }>(null);
   const isAdmin = myProfile?.role === "admin";
+  // v8.1 Monitoring Dosen: pilihan drill-down admin (dosen -> kelas).
+  const [monitorDosenId, setMonitorDosenId] = useState<number | null>(null);
+  const [monitorKelasId, setMonitorKelasId] = useState<number | null>(null);
   const [photoOpen, setPhotoOpen] = useState(false);
   const [activeKelasId, setActiveKelasId] = useState<number | null>(null);
   const [editor, setEditor] = useState<EditorState | null>(null);
@@ -612,7 +617,7 @@ export default function SmartClassApp() {
   async function loadAdmin() {
     const supabase = getSupabase();
     if (!supabase) return;
-    const [ds, ta, mk, kl, mh, ag, pt, ab, kn, nl] = await Promise.all([
+    const [ds, ta, mk, kl, mh, ag, pt, ab, kn, nl, mt, tg, pg] = await Promise.all([
       supabase.from("dosen").select("*").order("nama"),
       supabase.from("tahun_akademik").select("*").order("tahun", { ascending: false }),
       supabase.from("mata_kuliah").select("*").order("nama"),
@@ -623,6 +628,9 @@ export default function SmartClassApp() {
       supabase.from("absensi").select("*"),
       supabase.from("komponen_nilai").select("*"),
       supabase.from("nilai").select("*"),
+      supabase.from("materi").select("*").order("created_at", { ascending: false }),
+      supabase.from("tugas").select("*").order("created_at", { ascending: false }),
+      supabase.from("pengumpulan_tugas").select("*"),
     ]);
     if (ds.data) setDosenList(ds.data as Dosen[]);
     if (ta.data) setTaList(ta.data as TahunAkademik[]);
@@ -634,6 +642,10 @@ export default function SmartClassApp() {
     if (ab.data) setAbsensiList(ab.data as Absensi[]);
     if (kn.data) setKomponenList(kn.data as unknown as KomponenNilai[]);
     if (nl.data) setNilaiList(nl.data as unknown as Nilai[]);
+    // v8.1: materi/tugas/pengumpulan ikut dimuat untuk Monitoring Dosen.
+    if (mt.data) setMateriList(mt.data as Materi[]);
+    if (tg.data) setTugasList(tg.data as unknown as Tugas[]);
+    if (pg.data) setPengumpulanList(pg.data as unknown as PengumpulanTugas[]);
     setLoading(false);
     await refreshAccounts();
   }
@@ -1093,6 +1105,313 @@ export default function SmartClassApp() {
             </table>
           </section>
         )}
+
+        {view === "admin-monitoring" && isAdmin && (() => {
+          // ===== Monitoring Dosen (v8.1) — HANYA-LIHAT =====
+          // Seluruh tampilan di blok ini murni membaca state yang sudah
+          // dimuat loadAdmin(); tidak ada satu pun aksi tulis (tambah /
+          // edit / hapus / simpan) yang dirender untuk admin di sini.
+          const TERLAKSANA = new Set(["Selesai", "Berlangsung"]);
+          const pantauBadge = <span className="pantau-badge">👁 Mode Pantau — Hanya Lihat</span>;
+          const hadirDi = (kelasId: number, mhsId: number) => {
+            const pIds = new Set(pertemuanList.filter((p) => p.kelas_id === kelasId).map((p) => p.id));
+            const rows = absensiList.filter((a) => a.mahasiswa_id === mhsId && pIds.has(a.pertemuan_id));
+            const hitung = (s: string) => rows.filter((r) => r.status === s).length;
+            const efektif = hitung("Hadir") + hitung("Terlambat");
+            const persen = rows.length ? Math.round((efektif / rows.length) * 1000) / 10 : 0;
+            return { Hadir: hitung("Hadir"), Izin: hitung("Izin"), Sakit: hitung("Sakit"), Alpha: hitung("Alpha"), Terlambat: hitung("Terlambat"), total: rows.length, persen };
+          };
+          const gradeDi = (kelasId: number, mhsId: number) => {
+            let total = 0;
+            for (const kp of komponenList.filter((k) => k.kelas_id === kelasId)) {
+              const n = nilaiList.find((x) => x.kelas_id === kelasId && x.mahasiswa_id === mhsId && x.komponen_nilai_id === kp.id);
+              if (n && Number.isFinite(Number(n.nilai_angka))) total += Number(n.nilai_angka) * Number(kp.bobot || 0) / 100;
+            }
+            return total;
+          };
+          const ringkasDosen = (d: Dosen) => {
+            const ks = kelasList.filter((k) => k.dosen_id === d.id);
+            const kIds = ks.map((k) => k.id);
+            const pers = pertemuanList.filter((p) => kIds.includes(p.kelas_id));
+            const terlaksana = pers.filter((p) => TERLAKSANA.has(p.status)).length;
+            const pIds = new Set(pers.map((p) => p.id));
+            const abs = absensiList.filter((a) => pIds.has(a.pertemuan_id));
+            const pct = abs.length ? Math.round((abs.filter((a) => a.status === "Hadir" || a.status === "Terlambat").length / abs.length) * 1000) / 10 : null;
+            return {
+              ks, terlaksana, totalPertemuan: pers.length, pct,
+              materi: materiList.filter((m) => kIds.includes(m.kelas_id)).length,
+              tugas: tugasList.filter((t) => kIds.includes(t.kelas_id)).length,
+            };
+          };
+
+          const monDosen = monitorDosenId ? dosenList.find((d) => d.id === monitorDosenId) ?? null : null;
+          const monKelas = monDosen && monitorKelasId
+            ? kelasList.find((k) => k.id === monitorKelasId && k.dosen_id === monDosen.id) ?? null
+            : null;
+
+          /* ----- Level 1: daftar dosen ----- */
+          if (!monDosen) {
+            return (
+              <section className="module">
+                <div className="module-head">
+                  <h2>Monitoring Dosen</h2>{pantauBadge}<span className="spacer" />
+                </div>
+                <p className="muted" style={{ marginTop: 0 }}>
+                  Pantau kelengkapan administrasi mengajar setiap dosen: keadaan kelas, pertemuan yang
+                  terlaksana, materi yang diajarkan, tugas yang diberikan, dan mahasiswa yang diajar.
+                  Sebagai Admin Anda <strong>hanya melihat</strong> — tidak ada data dosen yang dapat
+                  diubah dari halaman ini.
+                </p>
+                <table>
+                  <thead><tr><th>Dosen</th><th>Prodi</th><th>Kelas</th><th>Pertemuan Terlaksana</th><th>% Kehadiran</th><th>Materi</th><th>Tugas</th><th>Akun</th><th></th></tr></thead>
+                  <tbody>
+                    {dosenList.map((d) => {
+                      const r = ringkasDosen(d);
+                      const akun = accounts.find((a) => a.dosen_id === d.id);
+                      return (
+                        <tr key={d.id}>
+                          <td><strong>{d.nama}</strong>{d.nidn ? <><br /><span className="muted" style={{ fontSize: 12 }}>NIDN {d.nidn}</span></> : null}</td>
+                          <td>{d.prodi || "-"}</td>
+                          <td>{r.ks.length}</td>
+                          <td>{r.terlaksana} dari {r.totalPertemuan}</td>
+                          <td>{r.pct === null ? "-" : `${r.pct}%`}</td>
+                          <td>{r.materi}</td>
+                          <td>{r.tugas}</td>
+                          <td>{akun ? <span className={`chip ${akun.aktif ? "ok" : "warn"}`}>{akun.aktif ? "Aktif" : "Nonaktif"}</span> : <span className="chip">Belum ada akun</span>}</td>
+                          <td><button className="btn btn-small" onClick={() => { setMonitorDosenId(d.id); setMonitorKelasId(null); }}>🔭 Pantau</button></td>
+                        </tr>
+                      );
+                    })}
+                    {dosenList.length === 0 && <tr><td colSpan={9} className="empty">Belum ada profil dosen. Buat dari menu Manajemen Akun Dosen.</td></tr>}
+                  </tbody>
+                </table>
+              </section>
+            );
+          }
+
+          const ringkasan = ringkasDosen(monDosen);
+          const akunDosen = accounts.find((a) => a.dosen_id === monDosen.id);
+
+          /* ----- Level 2: daftar kelas milik dosen terpilih ----- */
+          if (!monKelas) {
+            return (
+              <section className="module">
+                <div className="module-head">
+                  <button className="btn btn-small" onClick={() => { setMonitorDosenId(null); setMonitorKelasId(null); }}>← Semua Dosen</button>
+                  <h2>{monDosen.nama}</h2>{pantauBadge}<span className="spacer" />
+                </div>
+                <p className="muted" style={{ marginTop: 0 }}>
+                  {monDosen.nidn ? `NIDN ${monDosen.nidn} • ` : ""}{monDosen.prodi || "-"}
+                  {monDosen.fakultas ? ` • ${monDosen.fakultas}` : ""}{monDosen.email ? ` • ${monDosen.email}` : ""}
+                  {" • Akun: "}{akunDosen ? (akunDosen.aktif ? "Aktif" : "Nonaktif") : "Belum ada akun"}
+                </p>
+                <div className="kpis">
+                  <div className="kpi tone-2"><div className="k-ico">🗂️</div><div className="k-label">Kelas</div><div className="k-value">{ringkasan.ks.length}</div><div className="k-sub">Kelas yang diampu dosen ini</div></div>
+                  <div className="kpi tone-1"><div className="k-ico">🗓️</div><div className="k-label">Pertemuan Terlaksana</div><div className="k-value">{ringkasan.terlaksana}</div><div className="k-sub">dari {ringkasan.totalPertemuan} pertemuan terjadwal</div></div>
+                  <div className="kpi tone-4"><div className="k-ico">✅</div><div className="k-label">Rata-rata Kehadiran</div><div className="k-value">{ringkasan.pct === null ? "-" : `${ringkasan.pct}%`}</div><div className="k-sub">Hadir + terlambat dari seluruh absensi</div></div>
+                  <div className="kpi tone-3"><div className="k-ico">📁</div><div className="k-label">Materi &amp; Tugas</div><div className="k-value">{ringkasan.materi + ringkasan.tugas}</div><div className="k-sub">{ringkasan.materi} materi • {ringkasan.tugas} tugas</div></div>
+                </div>
+                <h3 style={{ margin: "6px 0 8px" }}>Kelas yang Diampu ({ringkasan.ks.length})</h3>
+                <div className="cards-grid">
+                  {ringkasan.ks.map((k) => {
+                    const peserta = anggotaList.filter((a) => a.kelas_id === k.id && a.status === "Aktif").length;
+                    const persK = pertemuanList.filter((p) => p.kelas_id === k.id);
+                    const terlaksanaK = persK.filter((p) => TERLAKSANA.has(p.status)).length;
+                    return (
+                      <div key={k.id} className="class-card">
+                        <h3 style={{ fontSize: 16 }}>{k.kode_kelas} — {mkById.get(k.mata_kuliah_id)?.nama ?? "Mata Kuliah"}</h3>
+                        <p>
+                          {taById.get(k.tahun_akademik_id) ? `${taById.get(k.tahun_akademik_id)?.tahun} • ${taById.get(k.tahun_akademik_id)?.semester}` : "-"}
+                          {" • Status "}{k.status}
+                          <br />{peserta} peserta • {terlaksanaK} dari {persK.length} pertemuan terlaksana
+                          <br />{materiList.filter((m) => m.kelas_id === k.id).length} materi • {tugasList.filter((t) => t.kelas_id === k.id).length} tugas
+                        </p>
+                        <div className="row-actions">
+                          <button className="btn btn-small btn-primary" onClick={() => setMonitorKelasId(k.id)}>Lihat Detail Kelas</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {ringkasan.ks.length === 0 && <p className="empty">Dosen ini belum memiliki kelas.</p>}
+                </div>
+              </section>
+            );
+          }
+
+          /* ----- Level 3: detail kelas (hanya-lihat) ----- */
+          const persK = pertemuanList.filter((p) => p.kelas_id === monKelas.id).sort((a, b) => a.pertemuan_ke - b.pertemuan_ke);
+          const materiK = materiList.filter((m) => m.kelas_id === monKelas.id);
+          const tugasK = tugasList.filter((t) => t.kelas_id === monKelas.id);
+          const anggotaK = anggotaList.filter((a) => a.kelas_id === monKelas.id && a.status === "Aktif")
+            .sort((a, b) => (a.nomor_absen ?? 999) - (b.nomor_absen ?? 999) || (mhsById.get(a.mahasiswa_id)?.nama ?? "").localeCompare(mhsById.get(b.mahasiswa_id)?.nama ?? ""));
+          const kompsK = komponenList.filter((k) => k.kelas_id === monKelas.id);
+          const bobotK = kompsK.reduce((s, k) => s + Number(k.bobot || 0), 0);
+          const bobotSiap = Math.abs(bobotK - 100) < 0.01;
+          return (
+            <section className="module">
+              <div className="module-head">
+                <button className="btn btn-small" onClick={() => setMonitorKelasId(null)}>← Kelas {monDosen.nama}</button>
+                <h2>{monKelas.kode_kelas} — {mkById.get(monKelas.mata_kuliah_id)?.nama ?? "Mata Kuliah"}</h2>{pantauBadge}<span className="spacer" />
+              </div>
+              <div className="summary-bar">
+                <span>Dosen: {monDosen.nama}</span>
+                <span>Tahun Akademik: {taById.get(monKelas.tahun_akademik_id) ? `${taById.get(monKelas.tahun_akademik_id)?.tahun} ${taById.get(monKelas.tahun_akademik_id)?.semester}` : "-"}</span>
+                <span>Ruang: {monKelas.ruang || "-"}</span>
+                <span>Jadwal: {monKelas.hari || "-"} {monKelas.jam_mulai || ""}{monKelas.jam_selesai ? `–${monKelas.jam_selesai}` : ""}</span>
+                <span>Status: {monKelas.status}</span>
+                <span>Peserta: {anggotaK.length}</span>
+                <span>Pertemuan: {persK.length}</span>
+              </div>
+
+              <h3 style={{ margin: "6px 0 8px" }}>Pertemuan ({persK.length})</h3>
+              <table style={{ marginBottom: 20 }}>
+                <thead><tr><th>Ke</th><th>Tanggal</th><th>Jam</th><th>Topik</th><th>Status</th></tr></thead>
+                <tbody>
+                  {persK.map((p) => (
+                    <tr key={p.id}>
+                      <td>{p.pertemuan_ke}</td>
+                      <td>{fmtTanggal(p.tanggal)}</td>
+                      <td>{p.jam_mulai || "-"}{p.jam_selesai ? `–${p.jam_selesai}` : ""}</td>
+                      <td><strong>{p.topik || "-"}</strong>{p.catatan ? <div className="muted" style={{ fontSize: 12, fontWeight: 400 }}>{p.catatan}</div> : null}</td>
+                      <td><span className={`chip ${p.status === "Selesai" ? "ok" : p.status === "Dibatalkan" ? "bad" : p.status === "Berlangsung" ? "warn" : ""}`}>{p.status}</span></td>
+                    </tr>
+                  ))}
+                  {persK.length === 0 && <tr><td colSpan={5} className="empty">Belum ada pertemuan di kelas ini.</td></tr>}
+                </tbody>
+              </table>
+
+              <h3 style={{ margin: "0 0 8px" }}>Materi yang Diajarkan ({materiK.length})</h3>
+              <table style={{ marginBottom: 20 }}>
+                <thead><tr><th>Judul</th><th>Pertemuan</th><th>Deskripsi</th><th>Lampiran</th></tr></thead>
+                <tbody>
+                  {materiK.map((m) => (
+                    <tr key={m.id}>
+                      <td><strong>{m.judul}</strong></td>
+                      <td>{m.pertemuan_id ? `Pertemuan ${pertemuanList.find((p) => p.id === m.pertemuan_id)?.pertemuan_ke ?? "-"}` : "-"}</td>
+                      <td>{m.deskripsi || "-"}</td>
+                      <td>{m.file_url ? <a className="file-link" href={m.file_url} target="_blank" rel="noreferrer">🔗 {m.file_name || "Buka file"}</a> : "-"}</td>
+                    </tr>
+                  ))}
+                  {materiK.length === 0 && <tr><td colSpan={4} className="empty">Belum ada materi di kelas ini.</td></tr>}
+                </tbody>
+              </table>
+
+              <h3 style={{ margin: "0 0 8px" }}>Tugas yang Diberikan ({tugasK.length})</h3>
+              <table style={{ marginBottom: 20 }}>
+                <thead><tr><th>Judul</th><th>Deadline</th><th>Status</th><th>Bobot</th><th>Pengumpulan</th><th>Lampiran</th></tr></thead>
+                <tbody>
+                  {tugasK.map((t) => {
+                    const ds = deadlineStatus(t.deadline);
+                    const kumpul = pengumpulanList.filter((p) => p.tugas_id === t.id);
+                    const dinilai = kumpul.filter((p) => p.status === "Sudah Dinilai").length;
+                    const terlambat = kumpul.filter((p) => p.status === "Terlambat").length;
+                    const belum = kumpul.filter((p) => p.status === "Belum Dinilai").length;
+                    const kumpulUrut = [...kumpul].sort((a, b) => (mhsById.get(a.mahasiswa_id)?.nama ?? "").localeCompare(mhsById.get(b.mahasiswa_id)?.nama ?? ""));
+                    return (
+                      <Fragment key={t.id}>
+                        <tr>
+                          <td><strong>{t.judul}</strong>{t.deskripsi ? <div className="muted" style={{ fontSize: 12, fontWeight: 400 }}>{t.deskripsi}</div> : null}</td>
+                          <td>{t.deadline ? new Date(t.deadline).toLocaleString("id-ID") : "-"}</td>
+                          <td><span className={`chip ${ds.cls}`}>{ds.label}</span></td>
+                          <td>{t.bobot != null ? `${Number(t.bobot)}%` : "-"}</td>
+                          <td>
+                            {kumpul.length} dari {anggotaK.length} mahasiswa
+                            {kumpul.length > 0 && (
+                              <div className="muted" style={{ fontSize: 12, fontWeight: 400 }}>
+                                Sudah dinilai {dinilai} • Terlambat {terlambat} • Belum dinilai {belum}
+                              </div>
+                            )}
+                          </td>
+                          <td>{t.file_url ? <a className="file-link" href={t.file_url} target="_blank" rel="noreferrer">🔗 {t.file_name || "Buka file"}</a> : "-"}</td>
+                        </tr>
+                        <tr>
+                          <td colSpan={6} style={{ background: "#f8fafc" }}>
+                            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Pengumpulan Mahasiswa ({kumpul.length})</div>
+                            {kumpul.length === 0 ? (
+                              <span className="muted">Belum ada pengumpulan.</span>
+                            ) : (
+                              <table style={{ margin: 0 }}>
+                                <thead><tr><th>Mahasiswa</th><th>Waktu Kumpul</th><th>Status</th><th>Nilai</th><th>File</th></tr></thead>
+                                <tbody>
+                                  {kumpulUrut.map((p) => {
+                                    const m = mhsById.get(p.mahasiswa_id);
+                                    return (
+                                      <tr key={p.id}>
+                                        <td><strong>{m?.nama ?? "-"}</strong><div className="muted" style={{ fontSize: 12, fontWeight: 400 }}>{m?.nim ?? "-"}</div></td>
+                                        <td>{p.waktu_kumpul ? new Date(p.waktu_kumpul).toLocaleString("id-ID") : "-"}</td>
+                                        <td><span className={`chip ${p.status === "Sudah Dinilai" ? "ok" : p.status === "Terlambat" ? "bad" : "warn"}`}>{p.status}</span></td>
+                                        <td>{p.nilai != null ? Number(p.nilai) : "-"}</td>
+                                        <td>{p.file_url ? <a className="file-link" href={p.file_url} target="_blank" rel="noreferrer">🔗 {p.file_name || "Buka file"}</a> : "-"}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            )}
+                          </td>
+                        </tr>
+                      </Fragment>
+                    );
+                  })}
+                  {tugasK.length === 0 && <tr><td colSpan={6} className="empty">Belum ada tugas di kelas ini.</td></tr>}
+                </tbody>
+              </table>
+
+              <h3 style={{ margin: "0 0 8px" }}>Mahasiswa yang Diajar ({anggotaK.length})</h3>
+              <table style={{ marginBottom: 20 }}>
+                <thead><tr><th>No. Absen</th><th>NIM</th><th>Nama</th><th>JK</th><th>Prodi</th><th>Angkatan</th></tr></thead>
+                <tbody>
+                  {anggotaK.map((a) => {
+                    const m = mhsById.get(a.mahasiswa_id); if (!m) return null;
+                    return (
+                      <tr key={a.id}>
+                        <td>{a.nomor_absen ?? "-"}</td><td>{m.nim}</td><td><strong>{m.nama}</strong></td>
+                        <td>{m.jenis_kelamin || "-"}</td><td>{m.prodi || "-"}</td><td>{m.angkatan ?? "-"}</td>
+                      </tr>
+                    );
+                  })}
+                  {anggotaK.length === 0 && <tr><td colSpan={6} className="empty">Belum ada peserta aktif di kelas ini.</td></tr>}
+                </tbody>
+              </table>
+
+              <h3 style={{ margin: "0 0 8px" }}>Rekap Kehadiran</h3>
+              <table style={{ marginBottom: 20 }}>
+                <thead><tr><th>No</th><th>NIM</th><th>Nama</th><th>Hadir</th><th>Izin</th><th>Sakit</th><th>Alpha</th><th>Terlambat</th><th>% Hadir</th></tr></thead>
+                <tbody>
+                  {anggotaK.map((a, i) => {
+                    const m = mhsById.get(a.mahasiswa_id); if (!m) return null;
+                    const r = hadirDi(monKelas.id, a.mahasiswa_id);
+                    return <tr key={a.id}><td>{i + 1}</td><td>{m.nim}</td><td><strong>{m.nama}</strong></td><td>{r.Hadir}</td><td>{r.Izin}</td><td>{r.Sakit}</td><td>{r.Alpha}</td><td>{r.Terlambat}</td><td>{r.persen}%</td></tr>;
+                  })}
+                  {anggotaK.length === 0 && <tr><td colSpan={9} className="empty">Belum ada peserta aktif di kelas ini.</td></tr>}
+                </tbody>
+              </table>
+
+              <h3 style={{ margin: "0 0 8px" }}>Rekap Nilai</h3>
+              {!bobotSiap && <p className="muted" style={{ marginTop: 0 }}>Total bobot komponen kelas ini {bobotK}% — nilai akhir &amp; huruf ditampilkan bila total bobot tepat 100%.</p>}
+              <table>
+                <thead><tr><th>No</th><th>NIM</th><th>Nama</th>{kompsK.map((k) => <th key={k.id}>{k.nama}</th>)}<th>Akhir</th><th>Huruf</th></tr></thead>
+                <tbody>
+                  {anggotaK.map((a, i) => {
+                    const m = mhsById.get(a.mahasiswa_id); if (!m) return null;
+                    const akhir = gradeDi(monKelas.id, a.mahasiswa_id);
+                    return (
+                      <tr key={a.id}><td>{i + 1}</td><td>{m.nim}</td><td><strong>{m.nama}</strong></td>
+                        {kompsK.map((k) => {
+                          const n = nilaiList.find((x) => x.kelas_id === monKelas.id && x.mahasiswa_id === a.mahasiswa_id && x.komponen_nilai_id === k.id);
+                          return <td key={k.id}>{n ? Number(n.nilai_angka) : "-"}</td>;
+                        })}
+                        <td><strong>{bobotSiap ? akhir.toFixed(2) : "-"}</strong></td>
+                        <td>{bobotSiap ? nilaiHuruf(akhir) : "-"}</td>
+                      </tr>
+                    );
+                  })}
+                  {anggotaK.length === 0 && <tr><td colSpan={5 + kompsK.length} className="empty">Belum ada peserta aktif di kelas ini.</td></tr>}
+                </tbody>
+              </table>
+            </section>
+          );
+        })()}
 
         {view === "dashboard" && (
           <>
@@ -2086,7 +2405,7 @@ export default function SmartClassApp() {
                   if (error) { showToast(`Backup gagal pada tabel ${t}: ${error.message}`); return; }
                   tables[t] = data ?? [];
                 }
-                const payload = { app: "smart-class-online", version: "v2026-10-27-v8", exported_at: new Date().toISOString(), tables };
+                const payload = { app: "smart-class-online", version: "v2026-10-27-v8.2", exported_at: new Date().toISOString(), tables };
                 const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
@@ -2194,7 +2513,7 @@ export default function SmartClassApp() {
               ))}
             </div>
             <p className="muted" style={{ fontSize: 13, marginTop: 16 }}>
-              Versi paket: SMART CLASS ONLINE v2026-10-27-v8 • Teknologi: Next.js + Supabase + Vercel.
+              Versi paket: SMART CLASS ONLINE v2026-10-27-v8.2 • Teknologi: Next.js + Supabase + Vercel.
               Program studi yang didukung Export SIAKAD: PGMI (86232), PAI (86208), Ekonomi Syariah (60206), Hukum Keluarga Islam (74230).
             </p>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>

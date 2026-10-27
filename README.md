@@ -102,6 +102,83 @@ Login dengan user Auth dari langkah 2, lalu cek berurutan:
 
 ---
 
+## 🔄 Pembaruan v2026-10-27-v8.2 — Daftar Pengumpulan Mahasiswa di Monitoring
+
+Penyempurnaan kecil khusus Admin — **murni frontend, tanpa
+migrasi SQL baru**. Paket ini **menggantikan paket v8.1** (yang
+belum pernah di-deploy), jadi dari v8 langsung naik ke v8.2.
+
+**Yang baru:**
+
+1. **Daftar pengumpulan per tugas di Monitoring Dosen**: pada
+   detail kelas (Mode Pantau), setiap tugas kini menampilkan
+   daftar **Pengumpulan Mahasiswa** tepat di bawah baris
+   tugasnya — nama mahasiswa + NIM, waktu kumpul, status
+   pengumpulan (Belum Dinilai / Sudah Dinilai / Terlambat),
+   nilai bila sudah dinilai, dan tautan file kiriman mahasiswa
+   yang bisa diklik untuk mengunduh/membuka. Bila belum ada
+   kiriman, tertulis "Belum ada pengumpulan."
+2. Tetap **100% hanya-lihat**: tidak ada tombol/input/aksi
+   tulis baru; badge **"Mode Pantau — Hanya Lihat"** tetap
+   tampil di setiap level Monitoring.
+
+**Langkah deploy v8.2 (dari v8):** sama persis dengan langkah
+v8.1 di bawah — upload seluruh isi paket ke GitHub (timpa file
+lama), tunggu Vercel, Ctrl+F5. Tidak ada file SQL yang perlu
+dijalankan.
+
+Self-check paket: baris pertama `VERSION.txt` adalah
+**`SMART CLASS ONLINE v2026-10-27-v8.2`**, versi di
+`package.json` adalah **1.5.2**, dan di
+`src/components/SmartClassApp.tsx` ada teks **`Monitoring Dosen`**
+serta **`Pengumpulan Mahasiswa`**.
+
+---
+
+## 🔄 Pembaruan v2026-10-27-v8.1 — Monitoring Dosen (Admin)
+
+Tambahan antarmuka khusus Admin — **murni frontend, tanpa
+migrasi SQL baru**. Skema, RLS, dan fungsi publik sama persis
+dengan v8.
+
+**Yang baru:**
+
+1. **Menu admin "Monitoring Dosen"** (di antara Dashboard Admin
+   dan Manajemen Akun Dosen). Daftar dosen kini dilengkapi
+   ringkasan per dosen: jumlah kelas, pertemuan terlaksana dari
+   total pertemuan, rata-rata % kehadiran, jumlah materi dan
+   tugas.
+2. **Drill-down hanya-lihat per dosen → kelas → detail kelas**:
+   pertemuan (tanggal, topik, status), materi yang diajarkan
+   (judul + tautan file), tugas yang diberikan (deadline, bobot,
+   jumlah pengumpulan + rincian status dinilai/terlambat/belum),
+   daftar mahasiswa peserta, rekap kehadiran per mahasiswa, dan
+   rekap nilai per komponen (nilai akhir & huruf hanya tampil
+   bila total bobot komponen kelas tepat 100%).
+3. **Pagar hanya-lihat ditegakkan keras**: tidak ada tombol
+   tambah/edit/hapus/simpan dan tidak ada form pada seluruh
+   tampilan Monitoring; setiap level ditandai badge
+   **"Mode Pantau — Hanya Lihat"**. Ini melengkapi RLS v8 yang
+   memang hanya memberi admin hak SELECT atas data dosen.
+
+**Langkah deploy v8.1 (dari v8):**
+
+1. **Upload seluruh isi paket ini ke GitHub** seperti biasa
+   (timpa file lama). Tidak ada file SQL yang perlu dijalankan.
+2. Tunggu Vercel selesai deploy, lalu **Ctrl+F5**.
+3. **Verifikasi**: masuk sebagai admin → menu **Monitoring
+   Dosen** harus muncul; buka satu dosen lalu satu kelas dan
+   pastikan detailnya tampil tanpa tombol edit apa pun. Bila
+   menu belum muncul, bundle lama masih tersaji — uji di
+   jendela privat/incognito.
+
+Self-check paket: baris pertama `VERSION.txt` adalah
+**`SMART CLASS ONLINE v2026-10-27-v8.1`**, versi di
+`package.json` adalah **1.5.1**, dan di
+`src/components/SmartClassApp.tsx` ada teks **`Monitoring Dosen`**.
+
+---
+
 ## 🔄 Pembaruan v2026-10-27-v8 — Multi-Akun Dua Peran (Dosen & Admin)
 
 Pembaruan arsitektur terbesar sejak rilis: aplikasi tidak lagi
@@ -304,12 +381,13 @@ Lakukan cek ini pada folder hasil ekstrak ZIP **sebelum** upload ke GitHub,
 agar tidak tertukar dengan versi lama:
 
 1. Buka file **`VERSION.txt`** di root folder — isinya harus diawali
-   **`SMART CLASS ONLINE v2026-10-27-v8`**.
+   **`SMART CLASS ONLINE v2026-10-27-v8.2`**.
 2. Buka **`src/components/SmartClassApp.tsx`** — tekan Ctrl+F dan
-   cari teks **`Manajemen Akun Dosen`**. Harus ketemu (fitur baru
-   di v8). Bila tidak ketemu, Anda membuka folder yang
-   salah/versi lama — ekstrak ulang ZIP
-   `smart-class-online-v2026-10-27-v8.zip` ke folder baru.
+   cari teks **`Monitoring Dosen`** dan **`Pengumpulan Mahasiswa`**.
+   Keduanya harus ketemu (fitur v8.1 + penyempurnaan v8.2). Bila
+   tidak ketemu, Anda membuka folder yang salah/versi lama —
+   ekstrak ulang ZIP `smart-class-online-v2026-10-27-v8.2.zip`
+   ke folder baru.
 3. Pastikan file **`supabase/migrasi-v8-multi-akun.sql`** ada, dan
    folder **`supabase/functions/create-lecturer-account/`** berisi
    **`index.ts`** (Edge Function baru v8).
@@ -319,10 +397,11 @@ agar tidak tertukar dengan versi lama:
 5. Ekstrak ZIP ke **folder baru** (jangan menimpa ekstraksi lama), upload dari
    folder baru itu, lalu hapus ZIP & folder lama agar tidak tertukar.
 
-Marker unik build ini: teks **`Manajemen Akun Dosen`** dan
-**`Dashboard Admin Kampus`** di `src/components/SmartClassApp.tsx`,
+Marker unik build ini: teks **`Monitoring Dosen`**,
+**`Mode Pantau`**, dan **`Pengumpulan Mahasiswa`** di
+`src/components/SmartClassApp.tsx`,
 teks **`owner select`** di `supabase/migrasi-v8-multi-akun.sql`,
-serta baris pertama `VERSION.txt` = `SMART CLASS ONLINE v2026-10-27-v8`.
+serta baris pertama `VERSION.txt` = `SMART CLASS ONLINE v2026-10-27-v8.2`.
 
 ---
 
