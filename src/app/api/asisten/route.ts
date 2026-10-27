@@ -15,16 +15,23 @@ const MAX_MESSAGES = 10;
 const MAX_CHARS = 1200;
 const TIMEOUT_MS = 20_000;
 
-// Rantai model cadangan v9.0.2: tidak semua API key/proyek punya akses ke
-// model yang sama (live user membalas 404 NOT_FOUND untuk gemini-2.5-flash
-// padahal key-nya valid). Model dicoba BERURUTAN; yang pertama berhasil
-// dipakai. Fallback HANYA untuk 404 — error lain (key salah 400, kuota
-// 429, dst) langsung dilaporkan agar diagnosisnya tidak tertutup.
+// Rantai model cadangan v9.0.3: Google membatasi model Gemini 2.5/2.0
+// hanya untuk developer yang pernah memakainya — API key/proyek BARU
+// menerima 404 "no longer available to new users" untuk SEMUA model 2.x
+// (itulah sebabnya seluruh rantai v9.0.2 tetap 404 di live user padahal
+// key-nya valid; gemini-2.0-flash bahkan sudah hilang untuk semua orang).
+// Pengganti resmi yang ditunjuk error Google untuk 2.5-flash adalah
+// gemini-3.8-flash; model free-tier saat ini adalah keluarga 3.x.
+// Urutan di bawah penting: yang terkuat dan pasti tersedia untuk user
+// baru ditaruh paling depan. Model dicoba BERURUTAN; yang pertama
+// berhasil dipakai. Fallback HANYA untuk 404 — error lain (key salah
+// 400, kuota 429, dst) langsung dilaporkan agar diagnosisnya tidak
+// tertutup.
 const DAFTAR_MODEL = [
-  "gemini-2.5-flash",
-  "gemini-flash-latest",
-  "gemini-2.5-flash-lite",
-  "gemini-2.0-flash",
+  "gemini-3.8-flash",
+  "gemini-3.6-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
 ];
 
 function badRequest() {

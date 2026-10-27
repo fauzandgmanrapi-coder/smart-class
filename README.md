@@ -161,6 +161,39 @@ ada di `src/components/AsistenChat.tsx`, dan
 
 ---
 
+## 🔄 Pembaruan v2026-10-28-v9.0.3 — Rantai Model Gemini 3.x
+
+Perbaikan mikro route `/api/asisten` — **hanya isi
+`DAFTAR_MODEL` yang berubah, tanpa migrasi SQL baru**,
+menggantikan paket v9.0.2. Sebab pastinya (riset web
+Oktober 2026, multi-sumber): Google membatasi model
+Gemini 2.5/2.0 hanya untuk developer yang pernah
+memakainya — API key/proyek **baru** menerima
+`404 "no longer available to new users"` untuk
+`gemini-2.5-flash` dan `gemini-2.5-flash-lite`, sedangkan
+`gemini-2.0-flash` sudah hilang untuk semua orang. Itulah
+mengapa **seluruh** rantai v9.0.2 (semua model 2.x) tetap
+404 di live user padahal key-nya valid.
+
+- `DAFTAR_MODEL` kini keluarga Gemini 3.x (free-tier saat
+  ini), dicoba berurutan: `gemini-3.8-flash` →
+  `gemini-3.6-flash` → `gemini-3.5-flash-lite` →
+  `gemini-3.1-flash-lite`. `gemini-3.8-flash` adalah
+  pengganti resmi yang ditunjuk pesan error Google untuk
+  `gemini-2.5-flash`, jadi ditaruh paling depan.
+- Logika rantai tidak berubah: jatuh ke model berikutnya
+  **hanya pada 404**; error lain (400 kunci tidak valid,
+  403, 429 kuota) dan kegagalan fetch (`FETCH_FAILED`)
+  langsung dilaporkan dengan format diagnostik v9.0.1
+  (`upstream_status` + `upstream_code`).
+
+Self-check paket: baris pertama `VERSION.txt` adalah
+**`SMART CLASS ONLINE v2026-10-28-v9.0.3`**, versi di
+`package.json` adalah **1.6.3**, teks **`gemini-3.8-flash`**
+ada di `src/app/api/asisten/route.ts`.
+
+---
+
 ## 🔄 Pembaruan v2026-10-28-v9.0.2 — Rantai Model Cadangan Asisten
 
 Perbaikan mikro route `/api/asisten` — **tanpa perubahan
