@@ -1,55 +1,61 @@
-SMART CLASS ONLINE v2026-10-28-v9.0.3
+SMART CLASS ONLINE v2026-10-28-v9.0.4
 ====================================
 
-Perbaikan MIKRO dari v2026-10-28-v9.0.2: rantai model
-route /api/asisten diganti dari keluarga Gemini 2.x ke
-keluarga Gemini 3.x. Sebab pastinya (riset web Okt 2026,
-multi-sumber): Google membatasi model Gemini 2.5/2.0
-hanya untuk developer yang pernah memakainya — API
-key/proyek BARU menerima 404 "no longer available to
-new users" untuk gemini-2.5-flash dan
-gemini-2.5-flash-lite, sedangkan gemini-2.0-flash sudah
-hilang untuk semua orang. Itulah mengapa SELURUH rantai
-v9.0.2 tetap 404 di live user padahal key-nya valid.
-Pengganti resmi yang ditunjuk error Google untuk
-2.5-flash adalah gemini-3.8-flash; model free-tier saat
-ini: 3.8 Flash, 3.6 Flash, 3.5 Flash-Lite, 3.1 Flash-Lite.
-Paket ini MENGGANTIKAN paket v9.0.2. TIDAK ada migrasi
-SQL baru — folder supabase/ identik dengan v9/v8.
+Perbaikan MIKRO dari v2026-10-28-v9.0.3: keandalan route
+/api/asisten (timeout & kecepatan model), menggantikan
+paket v9.0.3. TIDAK ada migrasi SQL baru — folder
+supabase/ identik dengan v9/v8.
 
-Yang berubah di v9.0.3 (HANYA src/app/api/asisten/route.ts):
-- Isi konstanta DAFTAR_MODEL menjadi:
-  "gemini-3.8-flash" -> "gemini-3.6-flash" ->
-  "gemini-3.5-flash-lite" -> "gemini-3.1-flash-lite".
-  Urutan ini penting: yang terkuat dan pasti tersedia
-  untuk user baru ditaruh paling depan.
-- SEMUA logika lain identik dengan v9.0.2: isi
-  permintaan sama untuk tiap model (systemInstruction,
-  contents, generationConfig), kunci dari env server
-  GEMINI_API_KEY, timeout 20 detik per percobaan.
-- Respons OK dari model mana pun -> langsung balas
-  {reply}.
-- Respons 404 -> dicatat "asisten-upstream" + nama model
-  + status + kode Google (pola v9.0.1), lalu LANJUT ke
-  model berikutnya.
-- Respons error SELAIN 404 (400 key tidak valid, 403,
-  429 kuota, dst) -> TIDAK lanjut ke model lain;
-  langsung balas 502 diagnostik pola v9.0.1
-  (upstream_status + upstream_code) untuk error itu.
-- fetch gagal (jaringan/timeout) -> langsung 502
-  {error:"upstream", upstream_status:0,
-  upstream_code:"FETCH_FAILED"} seperti v9.0.1.
-- Bila SEMUA model menjawab 404 -> balas 502 dengan
-  upstream_status/upstream_code dari respons TERAKHIR
-  (404 NOT_FOUND), sama seperti diagnosis v9.0.1.
-- Kunci API TIDAK pernah ditulis ke log maupun respons.
-- Perilaku lain identik: payload tidak valid -> 400,
-  kunci belum dipasang -> 503 {error:"not_configured"}.
-  UI AsistenChat.tsx tidak berubah.
-- package.json -> versi 1.6.3.
+Diagnosis (terverifikasi dari live): dengan rantai 3.x
+v9.0.3 asisten SEMPAT menjawab benar (HTTP 200), tetapi
+panggilan berikutnya gagal 502 {upstream_status:0,
+upstream_code:"FETCH_FAILED"} — termasuk probe satu
+giliran. Artinya: model pertama (gemini-3.8-flash, free
+tier) kadang merespons LEBIH LAMBAT dari timeout
+per-percobaan 20 detik sehingga fetch dibatalkan, dan
+desain v9.0.3 TIDAK jatuh ke model berikutnya saat fetch
+gagal/timeout. Ini BUKAN bug riwayat percakapan.
 
-Seluruh isi v9.0.2 & v9 tetap berlaku (rantai model
-cadangan + diagnostik asisten, tombol chat melayang
+Yang berubah di v9.0.4 (HANYA src/app/api/asisten/route.ts):
+- Ditambahkan export maxDuration = 60 agar fungsi boleh
+  memuat beberapa percobaan berurutan.
+- DAFTAR_MODEL baru — model LITE di depan (lebih cepat,
+  kuota lebih ringan; kualitas cukup untuk tanya-jawab
+  panduan), model penuh tetap cadangan di belakang:
+  "gemini-3.1-flash-lite" -> "gemini-3.5-flash-lite" ->
+  "gemini-3.8-flash" -> "gemini-3.6-flash".
+- generationConfig kini memuat thinkingConfig
+  { thinkingBudget: 0 } — mematikan penalaran berlebih
+  model Flash agar jawaban panduan cepat keluar.
+  Pengaman kompatibilitas: bila suatu percobaan dibalas
+  400 dan pesan error Google mengandung kata "thinking",
+  model yang sama dicoba ulang sekali TANPA
+  thinkingConfig, dan field itu tidak dipakai lagi selama
+  sisa request tersebut. Hasil percobaan ulang mengikuti
+  aturan normal (OK -> {reply}; 404 -> model berikutnya;
+  error lain -> 502 diagnostik).
+- Timeout/fetch gagal kini JATUH ke model berikutnya
+  (dulu langsung FETCH_FAILED): kegagalan terakhir
+  dicatat — jenis fetch/timeout atau 404 beserta
+  status/kode — lalu rantai lanjut. Anggaran total:
+  percobaan baru tidak dimulai bila waktu sejak awal
+  request sudah > 45 detik; rantai berhenti dan membalas
+  502 dengan diagnostik kegagalan TERAKHIR (FETCH_FAILED
+  bila terakhir fetch/timeout; 404 NOT_FOUND bila
+  terakhir 404).
+- Aturan lain TETAP: respons OK -> {reply}; error non-404
+  (selain kasus thinking di atas) -> langsung 502
+  diagnostik pola v9.0.1 (upstream_status +
+  upstream_code), tanpa jatuh ke model lain; payload
+  tidak valid -> 400; kunci belum dipasang -> 503
+  {error:"not_configured"}; timeout per percobaan tetap
+  20 detik; kunci API tidak pernah masuk log/respons;
+  log ringkas per kegagalan tetap menyertakan nama
+  model. UI AsistenChat.tsx tidak berubah.
+- package.json -> versi 1.6.4.
+
+Seluruh isi v9.0.3 & v9 tetap berlaku (rantai model
+Gemini 3.x + diagnostik asisten, tombol chat melayang
 setelah login, basis pengetahuan asisten-pengetahuan.ts
 dari Manual Book v5 + fitur v8) dan seluruh isi v8.2.1
 di bawahnya (multi-akun dua peran, Dashboard Admin,
@@ -58,12 +64,13 @@ tanda tangan laporan, grafik dashboard, perbaikan
 fmtTanggalWaktu).
 
 Marker self-check: baris pertama file ini persis
-"SMART CLASS ONLINE v2026-10-28-v9.0.3"; teks "Asisten
+"SMART CLASS ONLINE v2026-10-28-v9.0.4"; teks "Asisten
 Smart Class" ada di src/components/AsistenChat.tsx; teks
-"gemini-3.8-flash" ada di src/app/api/asisten/route.ts;
-versi di package.json adalah "1.6.3".
+"gemini-3.1-flash-lite" ada di
+src/app/api/asisten/route.ts; versi di package.json
+adalah "1.6.4".
 
-Urutan deploy (dari v9.0.2 — TANPA langkah migrasi SQL):
+Urutan deploy (dari v9.0.3 — TANPA langkah migrasi SQL):
 1) Ekstrak paket ke folder BARU, upload seluruh isinya ke
    GitHub (timpa file lama).
 2) Env GEMINI_API_KEY di Vercel TIDAK perlu diubah —
@@ -72,19 +79,20 @@ Urutan deploy (dari v9.0.2 — TANPA langkah migrasi SQL):
    dibagikan, jangan masuk GitHub/chat.
 3) Redeploy, tunggu selesai, lalu Ctrl+F5 di aplikasi.
 4) Login -> klik tombol chat -> ajukan pertanyaan;
-   asisten kini memakai model 3.x pertama yang tersedia.
+   asisten kini dipimpin model Lite yang cepat dan jatuh
+   ke model berikutnya juga saat timeout.
 Panduan deploy lengkap v9 ada di folder smart-class-v9
 (panduan-deploy-v9.md).
 
 Isi paket lengkap:
-- package.json / package-lock.json — manifest versi 1.6.3
+- package.json / package-lock.json — manifest versi 1.6.4
 - next.config.mjs, tsconfig.json, vercel.json, .env.example
   (memuat contoh GEMINI_API_KEY), .gitignore, next-env.d.ts
-- README.md — panduan deploy + langkah pembaruan s.d. v9.0.3
+- README.md — panduan deploy + langkah pembaruan s.d. v9.0.4
 - VERSION.txt — file ini
 - src/app/ — layout, / (pengarah), /login, /dashboard,
   /m/[token] (Halaman Mahasiswa + pengumpulan), globals.css,
-  api/asisten/route.ts (rantai model Gemini 3.x v9.0.3)
+  api/asisten/route.ts (rantai model Lite-first v9.0.4)
 - src/components/ — SmartClassApp.tsx (11 modul dosen + panel
   Bagikan + Dashboard Admin + Monitoring Dosen + Manajemen
   Akun Dosen + AsistenChat terpasang), Setup.tsx,

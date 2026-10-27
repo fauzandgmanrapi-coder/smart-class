@@ -6,6 +6,11 @@ import { SYSTEM_PROMPT_ASISTEN } from "@/lib/asisten-pengetahuan";
 // NEXT_PUBLIC_) sehingga tidak pernah terekspos ke peramban maupun repo.
 export const runtime = "nodejs";
 
+// Plafon durasi fungsi dinaikkan (v9.0.4): rantai model kini boleh
+// jatuh ke model berikutnya juga saat timeout, jadi satu request
+// berpotensi memuat beberapa percobaan berurutan.
+export const maxDuration = 60;
+
 interface ChatMsg {
   role: "user" | "assistant";
   content: string;
@@ -15,30 +20,45 @@ const MAX_MESSAGES = 10;
 const MAX_CHARS = 1200;
 const TIMEOUT_MS = 20_000;
 
-// Rantai model cadangan v9.0.3: Google membatasi model Gemini 2.5/2.0
-// hanya untuk developer yang pernah memakainya — API key/proyek BARU
-// menerima 404 "no longer available to new users" untuk SEMUA model 2.x
-// (itulah sebabnya seluruh rantai v9.0.2 tetap 404 di live user padahal
-// key-nya valid; gemini-2.0-flash bahkan sudah hilang untuk semua orang).
-// Pengganti resmi yang ditunjuk error Google untuk 2.5-flash adalah
-// gemini-3.8-flash; model free-tier saat ini adalah keluarga 3.x.
-// Urutan di bawah penting: yang terkuat dan pasti tersedia untuk user
-// baru ditaruh paling depan. Model dicoba BERURUTAN; yang pertama
-// berhasil dipakai. Fallback HANYA untuk 404 — error lain (key salah
-// 400, kuota 429, dst) langsung dilaporkan agar diagnosisnya tidak
-// tertutup.
+// Anggaran total satu request (v9.0.4): percobaan model BARU tidak
+// dimulai bila waktu yang sudah berlalu melewati batas ini, supaya
+// respons 502 diagnostik tetap sempat terkirim sebelum maxDuration.
+const ANGGARAN_TOTAL_MS = 45_000;
+
+// Rantai model cadangan. Riwayat:
+// - v9.0.2: seluruhnya keluarga 2.x — semuanya 404 di live user.
+// - v9.0.3: keluarga 3.x, terkuat di depan (gemini-3.8-flash) —
+//   asisten terbukti MENJAWAB benar (200), tetapi panggilan berikutnya
+//   gagal FETCH_FAILED: model pertama free-tier kadang merespons
+//   LEBIH LAMBAT dari timeout per-percobaan 20 detik, dan desain lama
+//   tidak jatuh ke model berikutnya saat fetch gagal/timeout.
+// - v9.0.4: model LITE ditaruh di depan — umumnya lebih cepat dan
+//   kuotanya lebih ringan, kualitasnya cukup untuk tanya-jawab
+//   panduan. Model penuh tetap ada di belakang sebagai cadangan.
+//   Timeout/fetch gagal DAN 404 sama-sama jatuh ke model berikutnya
+//   (anggaran total 45 detik); error non-404 lain tetap langsung
+//   dilaporkan agar diagnosisnya tidak tertutup.
 const DAFTAR_MODEL = [
+  "gemini-3.1-flash-lite",
+  "gemini-3.5-flash-lite",
   "gemini-3.8-flash",
   "gemini-3.6-flash",
-  "gemini-3.5-flash-lite",
-  "gemini-3.1-flash-lite",
 ];
 
 function badRequest() {
   return NextResponse.json({ error: "bad_request" }, { status: 400 });
 }
 
+// Hasil satu percobaan ke satu model.
+type HasilPercobaan =
+  | { tipe: "ok"; reply: string }
+  | { tipe: "kosong" }
+  | { tipe: "http"; status: number; kode: string; pesan: string }
+  | { tipe: "fetch"; nama: string; pesan: string };
+
 export async function POST(req: NextRequest) {
+  const awalRequest = Date.now();
+
   // ---- Validasi payload ----
   let body: unknown;
   try {
@@ -81,21 +101,34 @@ export async function POST(req: NextRequest) {
   }
 
   // ---- Panggil Gemini (REST, tanpa SDK), berurutan per DAFTAR_MODEL ----
-  const isiBody = JSON.stringify({
-    systemInstruction: { parts: [{ text: SYSTEM_PROMPT_ASISTEN }] },
-    contents: riwayat.map((m) => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
-    })),
-    generationConfig: { temperature: 0.3, maxOutputTokens: 800 },
-  });
+  const contents = riwayat.map((m) => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: m.content }],
+  }));
 
-  // Error 404 terakhir, disimpan agar bila SEMUA model 404 klien tetap
-  // menerima diagnosis NOT_FOUND persis seperti perilaku v9.0.1.
-  let statusTerakhir = 404;
-  let kodeTerakhir = "NOT_FOUND";
+  // thinkingConfig.thinkingBudget 0 (v9.0.4): mematikan penalaran
+  // berlebih model Flash agar jawaban panduan yang faktual keluar
+  // cepat. Pengaman kompatibilitas: bila Google menolak field ini
+  // (400 yang pesannya menyebut "thinking"), model yang sama dicoba
+  // ulang sekali TANPA thinkingConfig dan field itu tidak dipakai
+  // lagi selama sisa request ini (flag per-request di bawah).
+  let pakaiThinking = true;
+  const buatBody = () =>
+    JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM_PROMPT_ASISTEN }] },
+      contents,
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 800,
+        ...(pakaiThinking
+          ? { thinkingConfig: { thinkingBudget: 0 } }
+          : {}),
+      },
+    });
 
-  for (const model of DAFTAR_MODEL) {
+  // Satu percobaan ke satu model. Kegagalan dicatat ringkas ke log
+  // server (nama model + status/kode; TANPA kunci API/header).
+  const cobaSekali = async (model: string): Promise<HasilPercobaan> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
@@ -107,13 +140,11 @@ export async function POST(req: NextRequest) {
             "Content-Type": "application/json",
             "x-goog-api-key": apiKey,
           },
-          body: isiBody,
+          body: buatBody(),
           signal: controller.signal,
         }
       );
       if (!res.ok) {
-        // Diagnostik v9.0.1: catat status/kode error Google + nama model
-        // ke log server (TANPA kunci API/header).
         const teksError = await res.text().catch(() => "");
         let kodeGoogle = "";
         let pesanGoogle = "";
@@ -133,19 +164,12 @@ export async function POST(req: NextRequest) {
           kodeGoogle,
           pesanGoogle.slice(0, 200)
         );
-        if (res.status === 404) {
-          // Model tidak tersedia untuk key/proyek ini → coba model
-          // berikutnya dalam rantai.
-          statusTerakhir = res.status;
-          kodeTerakhir = kodeGoogle;
-          continue;
-        }
-        // Error selain 404 (key tidak valid, kuota, dst) adalah diagnosis
-        // final: JANGAN jatuh ke model lain, laporkan apa adanya.
-        return NextResponse.json(
-          { error: "upstream", upstream_status: res.status, upstream_code: kodeGoogle },
-          { status: 502 }
-        );
+        return {
+          tipe: "http",
+          status: res.status,
+          kode: kodeGoogle,
+          pesan: pesanGoogle,
+        };
       }
       const data: unknown = await res.json();
       const parts = (
@@ -159,28 +183,94 @@ export async function POST(req: NextRequest) {
             .join("")
             .trim()
         : "";
-      if (!reply) {
-        return NextResponse.json({ error: "upstream" }, { status: 502 });
-      }
-      return NextResponse.json({ reply });
+      if (!reply) return { tipe: "kosong" };
+      return { tipe: "ok", reply };
     } catch (err) {
-      // fetch-nya sendiri gagal (jaringan/timeout): kemungkinan masalah
-      // jaringan umum, bukan per-model → langsung FETCH_FAILED seperti
-      // pola v9.0.1, tidak lanjut ke model berikutnya.
       const nama = err instanceof Error ? err.name : "Error";
       const pesan = err instanceof Error ? err.message : String(err);
-      console.error("asisten-fetch-failed", nama, pesan.slice(0, 200));
-      return NextResponse.json(
-        { error: "upstream", upstream_status: 0, upstream_code: "FETCH_FAILED" },
-        { status: 502 }
-      );
+      console.error("asisten-fetch-failed", model, nama, pesan.slice(0, 200));
+      return { tipe: "fetch", nama, pesan };
     } finally {
       clearTimeout(timer);
     }
+  };
+
+  // Kegagalan terakhir yang bisa diteruskan ke model berikutnya
+  // (404 atau fetch/timeout), disimpan agar bila rantai berhenti —
+  // habis model atau habis anggaran — klien tetap menerima diagnosis
+  // kegagalan TERAKHIR dengan pola v9.0.1.
+  let statusTerakhir = 404;
+  let kodeTerakhir = "NOT_FOUND";
+  let terakhirFetch = false;
+
+  let percobaanPertama = true;
+  for (const model of DAFTAR_MODEL) {
+    // Anggaran total: jangan mulai percobaan baru bila waktu sejak
+    // awal request sudah melewati batas — berhenti dan laporkan
+    // kegagalan terakhir.
+    if (
+      !percobaanPertama &&
+      Date.now() - awalRequest > ANGGARAN_TOTAL_MS
+    ) {
+      break;
+    }
+    percobaanPertama = false;
+
+    // Per model: normalnya satu percobaan; satu percobaan ulang hanya
+    // untuk kasus kompatibilitas thinkingConfig (lihat di dalam loop).
+    for (;;) {
+      const hasil = await cobaSekali(model);
+
+      if (hasil.tipe === "ok") {
+        return NextResponse.json({ reply: hasil.reply });
+      }
+      if (hasil.tipe === "kosong") {
+        return NextResponse.json({ error: "upstream" }, { status: 502 });
+      }
+      if (hasil.tipe === "fetch") {
+        // v9.0.4: timeout/fetch gagal TIDAK lagi final — catat lalu
+        // jatuh ke model berikutnya (bisa jadi model itu yang lambat).
+        terakhirFetch = true;
+        break;
+      }
+      // hasil.tipe === "http"
+      if (
+        hasil.status === 400 &&
+        pakaiThinking &&
+        /thinking/i.test(hasil.pesan)
+      ) {
+        // Field thinkingConfig ditolak model ini: matikan untuk sisa
+        // request dan coba ulang MODEL YANG SAMA sekali lagi; hasil
+        // percobaan ulang mengikuti aturan normal di bawah ini juga.
+        pakaiThinking = false;
+        continue;
+      }
+      if (hasil.status === 404) {
+        // Model tidak tersedia untuk key/proyek ini → coba model
+        // berikutnya dalam rantai.
+        statusTerakhir = hasil.status;
+        kodeTerakhir = hasil.kode;
+        terakhirFetch = false;
+        break;
+      }
+      // Error selain 404 (key tidak valid, kuota, dst) adalah diagnosis
+      // final: JANGAN jatuh ke model lain, laporkan apa adanya.
+      return NextResponse.json(
+        { error: "upstream", upstream_status: hasil.status, upstream_code: hasil.kode },
+        { status: 502 }
+      );
+    }
   }
 
-  // Seluruh rantai menjawab 404: model tidak satu pun tersedia untuk
-  // key/proyek ini — laporkan error terakhir (404 NOT_FOUND).
+  // Rantai berhenti (semua model gagal diteruskan, atau anggaran
+  // habis): laporkan kegagalan TERAKHIR — FETCH_FAILED bila yang
+  // terakhir adalah fetch/timeout, 404 NOT_FOUND bila 404.
+  if (terakhirFetch) {
+    return NextResponse.json(
+      { error: "upstream", upstream_status: 0, upstream_code: "FETCH_FAILED" },
+      { status: 502 }
+    );
+  }
   return NextResponse.json(
     { error: "upstream", upstream_status: statusTerakhir, upstream_code: kodeTerakhir },
     { status: 502 }

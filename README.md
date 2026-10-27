@@ -161,6 +161,50 @@ ada di `src/components/AsistenChat.tsx`, dan
 
 ---
 
+## 🔄 Pembaruan v2026-10-28-v9.0.4 — Keandalan Asisten (Timeout & Model Lite)
+
+Perbaikan mikro route `/api/asisten` — **tanpa migrasi
+SQL baru**, menggantikan paket v9.0.3. Diagnosis
+terverifikasi dari live: asisten v9.0.3 **sempat menjawab
+benar (HTTP 200)**, tetapi panggilan berikutnya gagal
+`502 {upstream_status:0, upstream_code:"FETCH_FAILED"}`
+— termasuk probe satu giliran. Sebabnya: model pertama
+(`gemini-3.8-flash`, free tier) kadang merespons **lebih
+lambat dari timeout per-percobaan 20 detik** sehingga
+fetch dibatalkan, dan desain lama **tidak** jatuh ke
+model berikutnya saat fetch gagal/timeout. Bukan bug
+riwayat percakapan.
+
+- `DAFTAR_MODEL` kini dipimpin model **Lite** (lebih
+  cepat, kuota lebih ringan; kualitas cukup untuk
+  tanya-jawab panduan): `gemini-3.1-flash-lite` →
+  `gemini-3.5-flash-lite` → `gemini-3.8-flash` →
+  `gemini-3.6-flash`.
+- `generationConfig` memuat `thinkingConfig:
+  { thinkingBudget: 0 }` agar model Flash tidak
+  "berpikir" berlebih untuk jawaban panduan. Pengaman:
+  bila Google membalas 400 yang pesannya menyebut
+  *thinking*, model yang sama dicoba ulang sekali tanpa
+  field itu dan field itu dimatikan untuk sisa request.
+- **Timeout/fetch gagal kini jatuh ke model berikutnya**
+  (dulu langsung `FETCH_FAILED`), dengan anggaran total
+  45 detik sejak awal request; rantai berhenti dan
+  membalas 502 dengan diagnostik kegagalan **terakhir**.
+  `maxDuration` route dinaikkan ke 60 detik.
+- Aturan lama tetap: jatuh ke model berikutnya juga
+  pada 404; error non-404 lain (400 kunci tidak valid,
+  403, 429 kuota) langsung dilaporkan dengan format
+  diagnostik v9.0.1 (`upstream_status` + `upstream_code`);
+  timeout per percobaan tetap 20 detik.
+
+Self-check paket: baris pertama `VERSION.txt` adalah
+**`SMART CLASS ONLINE v2026-10-28-v9.0.4`**, versi di
+`package.json` adalah **1.6.4**, teks
+**`gemini-3.1-flash-lite`** ada di
+`src/app/api/asisten/route.ts`.
+
+---
+
 ## 🔄 Pembaruan v2026-10-28-v9.0.3 — Rantai Model Gemini 3.x
 
 Perbaikan mikro route `/api/asisten` — **hanya isi
