@@ -1,29 +1,32 @@
-SMART CLASS ONLINE v2026-10-27-v8.2
+SMART CLASS ONLINE v2026-10-27-v8.2.1
 ====================================
 
-Pembaruan dari v2026-10-27-v8.1: DAFTAR PENGUMPULAN MAHASISWA
-di Monitoring Dosen. Paket ini MENGGANTIKAN paket v8.1 (yang
-belum pernah di-deploy) — dari v8 langsung naik ke v8.2.
-Murni tambahan antarmuka (frontend) — TIDAK ada migrasi SQL
-baru, skema/RLS/fungsi publik tidak berubah dari v8.
+Pembaruan MIKRO dari v2026-10-27-v8.2: perbaikan tampilan
+"Invalid Date" pada Monitoring Dosen. Paket ini MENGGANTIKAN
+paket v8.2 (jalur deploy tetap v8 -> v8.2.1). Murni perbaikan
+antarmuka (frontend) — TIDAK ada migrasi SQL baru, skema/RLS/
+fungsi publik tidak berubah, format penyimpanan data tidak
+diubah sama sekali.
 
-Yang baru di v8.2:
-- Pada Monitoring Dosen -> detail kelas -> bagian Tugas,
-  setiap tugas kini menampilkan daftar "Pengumpulan
-  Mahasiswa" tepat di bawah baris tugasnya: nama mahasiswa
-  + NIM, waktu kumpul, status pengumpulan (Belum Dinilai /
-  Sudah Dinilai / Terlambat), nilai bila sudah dinilai, dan
-  tautan file kiriman mahasiswa (klik untuk membuka /
-  mengunduh file-nya). Bila belum ada kiriman untuk tugas
-  itu, tertulis "Belum ada pengumpulan."
-- Data pengumpulan memang sudah dimuat loadAdmin() sejak
-  v8.1; v8.2 hanya menampilkan baris-barisnya per mahasiswa.
-- Tetap 100% HANYA-LIHAT: daftar ini tidak menambah tombol,
-  input, atau aksi tulis apa pun; badge "Mode Pantau —
-  Hanya Lihat" tetap tampil di setiap level Monitoring.
-- package.json -> versi 1.5.2.
+Yang diperbaiki di v8.2.1:
+- Di Monitoring Dosen -> detail kelas -> bagian Tugas ->
+  daftar "Pengumpulan Mahasiswa", kolom Waktu Kumpul untuk
+  pengumpulan online sebelumnya tampil "Invalid Date".
+  Penyebabnya: nilai waktu_kumpul pengumpulan online
+  tersimpan sebagai teks tampilan lokal (dari RPC
+  pengumpulan online v5) yang tidak bisa diolah
+  new Date(...), sedangkan baris manual tersimpan ISO.
+- Perbaikan: helper aman fmtTanggalWaktu dipakai untuk
+  kolom Waktu Kumpul dan kolom Deadline tugas di dalam blok
+  Monitoring. Bila nilai valid -> diformat id-ID seperti
+  sebelumnya; bila tidak bisa diolah -> teks aslinya
+  ditampilkan apa adanya (persis seperti tampilan sisi
+  dosen yang selama ini terbaca normal); bila kosong -> "-".
+- Pemformatan di luar blok Monitoring TIDAK diubah;
+  pengalaman peran dosen tidak berubah sama sekali.
+- package.json -> versi 1.5.3.
 
-Seluruh isi v8.1 tetap berlaku di v8.2:
+Seluruh isi v8.2 tetap berlaku di v8.2.1:
 - Menu admin "Monitoring Dosen" (grup menu admin, di antara
   Dashboard Admin dan Manajemen Akun Dosen). Hanya tampil
   untuk akun berperan admin.
@@ -36,38 +39,39 @@ Seluruh isi v8.1 tetap berlaku di v8.2:
   status; (b) Materi: judul, pertemuan terkait, deskripsi,
   tautan file; (c) Tugas: judul, deadline, bobot, jumlah
   pengumpulan beserta rincian statusnya + daftar pengumpulan
-  mahasiswa (baru di v8.2); (d) Mahasiswa: daftar peserta
-  aktif kelas; (e) Rekap Kehadiran per mahasiswa; (f) Rekap
-  Nilai per mahasiswa per komponen + nilai akhir & huruf —
-  hanya bila total bobot komponen kelas tepat 100%.
+  mahasiswa; (d) Mahasiswa: daftar peserta aktif kelas;
+  (e) Rekap Kehadiran per mahasiswa; (f) Rekap Nilai per
+  mahasiswa per komponen + nilai akhir & huruf — hanya bila
+  total bobot komponen kelas tepat 100%.
 - Data dimuat sekali oleh loadAdmin() lalu diagregasi di
   memori — tanpa query per baris.
-- Pengalaman peran dosen tidak berubah sama sekali.
-- File supabase/ tidak berubah sama sekali dari v8/v8.1.
+- File supabase/ tidak berubah sama sekali dari v8/v8.1/v8.2.
 
 Marker self-check: baris pertama file ini persis
-"SMART CLASS ONLINE v2026-10-27-v8.2"; di
+"SMART CLASS ONLINE v2026-10-27-v8.2.1"; di
 src/components/SmartClassApp.tsx ada teks "Monitoring Dosen"
-(menu admin), "Mode Pantau", dan "Pengumpulan Mahasiswa"
-(fitur baru v8.2); versi di package.json adalah "1.5.2".
+(menu admin), "Mode Pantau", "Pengumpulan Mahasiswa", dan
+"fmtTanggalWaktu" (helper baru v8.2.1);
+versi di package.json adalah "1.5.3".
 
-Urutan deploy (dari v8 — TANPA langkah migrasi SQL):
+Urutan deploy (dari v8 / v8.2 — TANPA langkah migrasi SQL):
 1) Upload seluruh isi paket ke GitHub (timpa file lama).
 2) Tunggu deploy Vercel selesai, lalu Ctrl+F5 di aplikasi.
-3) Login sebagai admin -> menu "Monitoring Dosen" harus
-   muncul; buka satu dosen dan satu kelas, lalu pada bagian
-   Tugas pastikan daftar Pengumpulan Mahasiswa tampil di
-   bawah setiap tugas tanpa tombol edit apa pun.
-   (Bila menu belum muncul, bundle lama masih tersaji —
-   uji di jendela privat/incognito.)
+3) Login sebagai admin -> Monitoring Dosen -> buka satu
+   dosen dan satu kelas -> pada bagian Tugas pastikan kolom
+   Waktu Kumpul daftar Pengumpulan Mahasiswa tidak lagi
+   menampilkan "Invalid Date" (baris pengumpulan online
+   menampilkan teks waktu aslinya).
+   (Bila tampilannya belum berubah, bundle lama masih
+   tersaji — uji di jendela privat/incognito.)
 Untuk yang BARU memasang dari nol: ikuti panduan deploy
 lengkap di README (termasuk migrasi v8 dan Edge Function)
-terlebih dahulu, urutan di atas hanya untuk pembaruan v8.2.
+terlebih dahulu, urutan di atas hanya untuk pembaruan v8.2.1.
 
 Isi paket lengkap:
-- package.json / package-lock.json — manifest versi 1.5.2
+- package.json / package-lock.json — manifest versi 1.5.3
 - next.config.mjs, tsconfig.json, vercel.json, .env.example, .gitignore
-- README.md — panduan deploy + langkah pembaruan s.d. v8.2
+- README.md — panduan deploy + langkah pembaruan s.d. v8.2.1
 - VERSION.txt — file ini
 - src/app/ — layout, / (pengarah), /login, /dashboard,
   /m/[token] (Halaman Mahasiswa + pengumpulan), globals.css

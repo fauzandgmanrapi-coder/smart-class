@@ -102,6 +102,34 @@ Login dengan user Auth dari langkah 2, lalu cek berurutan:
 
 ---
 
+## 🔄 Pembaruan v2026-10-27-v8.2.1 — Perbaikan "Invalid Date" di Monitoring
+
+Perbaikan mikro khusus tampilan Monitoring Dosen — **murni
+frontend, tanpa migrasi SQL baru**, menggantikan paket v8.2.
+
+**Yang diperbaiki:** pada daftar Pengumpulan Mahasiswa di
+Monitoring, kolom Waktu Kumpul untuk pengumpulan online sempat
+tampil **"Invalid Date"** karena nilai waktunya tersimpan
+sebagai teks tampilan lokal (dari RPC pengumpulan online)
+yang tidak bisa diolah `new Date(...)`. Sekarang kolom itu —
+dan kolom Deadline tugas di blok Monitoring — memakai helper
+aman `fmtTanggalWaktu`: nilai yang valid diformat id-ID
+seperti biasa, nilai yang tidak bisa diolah ditampilkan apa
+adanya sebagai teks (sama seperti tampilan sisi dosen), nilai
+kosong tampil "-". Tidak ada perubahan data, skema, atau
+perilaku peran dosen.
+
+**Langkah deploy v8.2.1:** sama seperti v8.2 — upload seluruh
+isi paket ke GitHub (timpa file lama), tunggu Vercel, Ctrl+F5.
+
+Self-check paket: baris pertama `VERSION.txt` adalah
+**`SMART CLASS ONLINE v2026-10-27-v8.2.1`**, versi di
+`package.json` adalah **1.5.3**, dan di
+`src/components/SmartClassApp.tsx` ada teks **`Monitoring Dosen`**
+serta **`fmtTanggalWaktu`**.
+
+---
+
 ## 🔄 Pembaruan v2026-10-27-v8.2 — Daftar Pengumpulan Mahasiswa di Monitoring
 
 Penyempurnaan kecil khusus Admin — **murni frontend, tanpa

@@ -87,6 +87,11 @@ function fmtTanggal(iso: string | null | undefined): string {
   const d = new Date(`${iso.slice(0, 10)}T00:00:00`);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
 }
+function fmtTanggalWaktu(value: string | null | undefined): string {
+  if (!value) return "-";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? value.trim() : d.toLocaleString("id-ID");
+}
 function deadlineStatus(deadline: string | null): { label: string; cls: string } {
   if (!deadline) return { label: "Tanpa deadline", cls: "" };
   const now = Date.now();
@@ -1311,7 +1316,7 @@ export default function SmartClassApp() {
                       <Fragment key={t.id}>
                         <tr>
                           <td><strong>{t.judul}</strong>{t.deskripsi ? <div className="muted" style={{ fontSize: 12, fontWeight: 400 }}>{t.deskripsi}</div> : null}</td>
-                          <td>{t.deadline ? new Date(t.deadline).toLocaleString("id-ID") : "-"}</td>
+                          <td>{fmtTanggalWaktu(t.deadline)}</td>
                           <td><span className={`chip ${ds.cls}`}>{ds.label}</span></td>
                           <td>{t.bobot != null ? `${Number(t.bobot)}%` : "-"}</td>
                           <td>
@@ -1338,7 +1343,7 @@ export default function SmartClassApp() {
                                     return (
                                       <tr key={p.id}>
                                         <td><strong>{m?.nama ?? "-"}</strong><div className="muted" style={{ fontSize: 12, fontWeight: 400 }}>{m?.nim ?? "-"}</div></td>
-                                        <td>{p.waktu_kumpul ? new Date(p.waktu_kumpul).toLocaleString("id-ID") : "-"}</td>
+                                        <td>{fmtTanggalWaktu(p.waktu_kumpul)}</td>
                                         <td><span className={`chip ${p.status === "Sudah Dinilai" ? "ok" : p.status === "Terlambat" ? "bad" : "warn"}`}>{p.status}</span></td>
                                         <td>{p.nilai != null ? Number(p.nilai) : "-"}</td>
                                         <td>{p.file_url ? <a className="file-link" href={p.file_url} target="_blank" rel="noreferrer">🔗 {p.file_name || "Buka file"}</a> : "-"}</td>
@@ -2405,7 +2410,7 @@ export default function SmartClassApp() {
                   if (error) { showToast(`Backup gagal pada tabel ${t}: ${error.message}`); return; }
                   tables[t] = data ?? [];
                 }
-                const payload = { app: "smart-class-online", version: "v2026-10-27-v8.2", exported_at: new Date().toISOString(), tables };
+                const payload = { app: "smart-class-online", version: "v2026-10-27-v8.2.1", exported_at: new Date().toISOString(), tables };
                 const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
@@ -2513,7 +2518,7 @@ export default function SmartClassApp() {
               ))}
             </div>
             <p className="muted" style={{ fontSize: 13, marginTop: 16 }}>
-              Versi paket: SMART CLASS ONLINE v2026-10-27-v8.2 • Teknologi: Next.js + Supabase + Vercel.
+              Versi paket: SMART CLASS ONLINE v2026-10-27-v8.2.1 • Teknologi: Next.js + Supabase + Vercel.
               Program studi yang didukung Export SIAKAD: PGMI (86232), PAI (86208), Ekonomi Syariah (60206), Hukum Keluarga Islam (74230).
             </p>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
